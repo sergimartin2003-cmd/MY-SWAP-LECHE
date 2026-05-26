@@ -4,10 +4,12 @@ import { useAccount, useBalance } from 'wagmi';
 import { useStore } from '../store/useStore';
 
 const TABS = [
-  { id: 'swap',      label: 'Swap' },
-  { id: 'markets',   label: 'Markets' },
-  { id: 'pools',     label: 'Pools' },
-  { id: 'portfolio', label: 'Portfolio' },
+  { id: 'swap',        label: 'Swap' },
+  { id: 'markets',     label: 'Markets' },
+  { id: 'limits',      label: 'Limits', badge: 'New' },
+  { id: 'pools',       label: 'Pools' },
+  { id: 'portfolio',   label: 'Portfolio' },
+  { id: 'analytics',   label: 'Analytics' },
 ];
 
 function truncate(addr: string) {
@@ -59,7 +61,7 @@ export default function Navbar() {
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className="relative px-4 py-1.5 rounded-lg text-sm font-medium transition-all duration-200"
+              className="relative px-4 py-1.5 rounded-lg text-sm font-medium transition-all duration-200 flex items-center gap-1.5"
               style={{ color: activeTab === tab.id ? '#fff' : 'rgba(255,255,255,0.5)' }}
             >
               {activeTab === tab.id && (
@@ -71,6 +73,12 @@ export default function Navbar() {
                 />
               )}
               <span className="relative z-10">{tab.label}</span>
+              {tab.badge && (
+                <span className="relative z-10 text-xs px-1.5 py-0.5 rounded-full font-bold"
+                  style={{ background: 'rgba(252,114,255,0.25)', color: '#FC72FF', fontSize: '9px', lineHeight: 1 }}>
+                  {tab.badge}
+                </span>
+              )}
             </button>
           ))}
         </div>
@@ -115,18 +123,19 @@ export default function Navbar() {
       </div>
 
       {/* Mobile tabs */}
-      <div className="md:hidden flex items-center justify-around px-4 pb-2">
+      <div className="md:hidden flex items-center justify-around px-2 pb-2 overflow-x-auto gap-1">
         {TABS.map(tab => (
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
-            className="text-xs font-medium py-1 px-3 rounded-lg transition-all"
+            className="text-xs font-medium py-1 px-2 rounded-lg transition-all whitespace-nowrap flex items-center gap-1"
             style={{
               color: activeTab === tab.id ? '#00D4FF' : 'rgba(255,255,255,0.4)',
               borderBottom: activeTab === tab.id ? '2px solid #00D4FF' : '2px solid transparent',
             }}
           >
             {tab.label}
+            {tab.badge && <span className="text-xs font-bold" style={{ color: '#FC72FF', fontSize: '8px' }}>{tab.badge}</span>}
           </button>
         ))}
       </div>

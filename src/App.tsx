@@ -9,10 +9,12 @@ import WalletSync from './components/WalletSync';
 import { useStore } from './store/useStore';
 
 // Lazy-load pages → each page gets its own chunk, cuts initial bundle ~60%
-const SwapPage      = lazy(() => import('./pages/SwapPage'));
-const MarketsPage   = lazy(() => import('./pages/MarketsPage'));
-const PoolsPage     = lazy(() => import('./pages/PoolsPage'));
-const PortfolioPage = lazy(() => import('./pages/PortfolioPage'));
+const SwapPage        = lazy(() => import('./pages/SwapPage'));
+const MarketsPage     = lazy(() => import('./pages/MarketsPage'));
+const PoolsPage       = lazy(() => import('./pages/PoolsPage'));
+const PortfolioPage   = lazy(() => import('./pages/PortfolioPage'));
+const AnalyticsPage   = lazy(() => import('./pages/AnalyticsPage'));
+const LimitOrdersPage = lazy(() => import('./pages/LimitOrdersPage'));
 
 const pageVariants = {
   initial: { opacity: 0, y: 12 },
@@ -36,11 +38,13 @@ export default function App() {
 
   const renderPage = () => {
     switch (activeTab) {
-      case 'swap':      return <SwapPage />;
-      case 'markets':   return <MarketsPage />;
-      case 'pools':     return <PoolsPage />;
-      case 'portfolio': return <PortfolioPage />;
-      default:          return <SwapPage />;
+      case 'swap':       return <SwapPage />;
+      case 'markets':    return <MarketsPage />;
+      case 'pools':      return <PoolsPage />;
+      case 'portfolio':  return <PortfolioPage />;
+      case 'analytics':  return <AnalyticsPage />;
+      case 'limits':     return <LimitOrdersPage />;
+      default:           return <SwapPage />;
     }
   };
 
