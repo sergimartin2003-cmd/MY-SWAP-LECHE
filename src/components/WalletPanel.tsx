@@ -337,13 +337,32 @@ export default function WalletPanel() {
 /* ── Helpers ─────────────────────────────────────────────────────── */
 
 function getConnectorMeta(id: string) {
-  if (id === 'injected' || id === 'metaMask')
-    return { icon: '🦊', label: 'MetaMask / Browser Wallet', desc: 'Connect via browser extension' };
-  if (id === 'coinbaseWallet' || id === 'coinbaseWalletSDK')
-    return { icon: '🔵', label: 'Coinbase Wallet', desc: 'Smart Wallet or Coinbase app' };
-  if (id === 'walletConnect')
-    return { icon: '🔗', label: 'WalletConnect', desc: 'Scan with any mobile wallet' };
-  return { icon: '💼', label: id, desc: 'Connect wallet' };
+  const lower = id.toLowerCase();
+  // MetaMask — injected with target metaMask or generic io.metamask
+  if (lower === 'metamask' || lower === 'io.metamask')
+    return { icon: '🦊', label: 'MetaMask',         desc: 'Browser extension wallet' };
+  // Phantom EVM
+  if (lower === 'phantom' || lower === 'app.phantom')
+    return { icon: '👻', label: 'Phantom',           desc: 'Solana & EVM wallet' };
+  // Trust Wallet
+  if (lower === 'trust' || lower === 'com.trustwallet.app')
+    return { icon: '🛡️', label: 'Trust Wallet',      desc: 'Multi-chain mobile wallet' };
+  // Brave Wallet
+  if (lower === 'bravewallet' || lower === 'com.brave.wallet')
+    return { icon: '🦁', label: 'Brave Wallet',      desc: 'Built into Brave browser' };
+  // Generic injected (Rabby, Frame, etc.)
+  if (lower === 'injected')
+    return { icon: '🌐', label: 'Browser Wallet',    desc: 'Rabby, Frame, or any injected wallet' };
+  // Coinbase Wallet / Smart Wallet
+  if (lower === 'coinbasewallet' || lower === 'coinbasewalletsdk')
+    return { icon: '🔵', label: 'Coinbase Wallet',   desc: 'Smart Wallet or Coinbase app' };
+  // WalletConnect
+  if (lower === 'walletconnect')
+    return { icon: '🔗', label: 'WalletConnect',     desc: 'Scan QR with Rainbow, Trust, etc.' };
+  // Gnosis Safe
+  if (lower === 'safe' || lower === 'gnosissafe')
+    return { icon: '🔒', label: 'Gnosis Safe',       desc: 'Multi-sig smart contract wallet' };
+  return { icon: '💼', label: id,                    desc: 'Connect wallet' };
 }
 
 function AddressAvatar({ address }: { address: string }) {
