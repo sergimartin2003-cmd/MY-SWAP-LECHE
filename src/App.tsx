@@ -69,8 +69,8 @@ export default function App() {
 
         <footer className="mt-auto py-6 border-t border-white/5 text-center">
           <p className="text-xs" style={{ color: 'rgba(255,255,255,0.15)' }}>
-            NexSwap — Next-Gen DEX · Built with ❤️ ·{' '}
-            <span style={{ color: '#7B2FFF' }}>Not financial advice</span>
+            NexSwap — Next-Gen DEX · Powered by{' '}
+            <span style={{ color: '#FC72FF' }}>🦄 Uniswap v3</span>
           </p>
         </footer>
       </div>

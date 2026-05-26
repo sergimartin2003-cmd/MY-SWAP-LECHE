@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import type { Token, TradingPair, GasSpeed } from '../types';
 import { TOKENS, TRADING_PAIRS } from '../data/tokens';
+import type { TokenBalanceMap } from '../hooks/useTokenBalances';
 
 interface Notification {
   id: string;
@@ -10,14 +11,21 @@ interface Notification {
 }
 
 interface AppState {
+  // Wallet (synced from wagmi via WalletSync component)
   walletConnected: boolean;
   walletAddress: string;
   walletBalance: number;
+  tokenBalances: TokenBalanceMap;   // real on-chain balances per token address
   setWalletState: (connected: boolean, address: string, balance?: number) => void;
+  setTokenBalances: (balances: TokenBalanceMap) => void;
+
+  // Wallet panel
   showWalletPanel: boolean;
   setShowWalletPanel: (show: boolean) => void;
-  connectWallet: () => void;
-  disconnectWallet: () => void;
+  connectWallet: () => void;        // opens the panel
+  disconnectWallet: () => void;     // wagmi disconnect called separately
+
+  // Swap
   tokenIn: Token;
   tokenOut: Token;
   amountIn: string;
@@ -32,10 +40,14 @@ interface AppState {
   flipTokens: () => void;
   setSlippage: (slippage: number) => void;
   setGasSpeed: (speed: GasSpeed) => void;
+
+  // Markets
   selectedPair: TradingPair | null;
   setSelectedPair: (pair: TradingPair | null) => void;
   pairs: TradingPair[];
   updatePrices: () => void;
+
+  // UI
   activeTab: string;
   setActiveTab: (tab: string) => void;
   notifications: Notification[];
@@ -44,15 +56,22 @@ interface AppState {
 }
 
 export const useStore = create<AppState>((set, get) => ({
+  // Wallet
   walletConnected: false,
   walletAddress: '',
   walletBalance: 0,
+  tokenBalances: {},
   setWalletState: (connected, address, balance = 0) =>
     set({ walletConnected: connected, walletAddress: address, walletBalance: balance }),
+  setTokenBalances: (balances) => set({ tokenBalances: balances }),
+
+  // Wallet panel
   showWalletPanel: false,
   setShowWalletPanel: (show) => set({ showWalletPanel: show }),
   connectWallet: () => set({ showWalletPanel: true }),
   disconnectWallet: () => set({ walletConnected: false, walletAddress: '', walletBalance: 0 }),
+
+  // Swap
   tokenIn: TOKENS[0],
   tokenOut: TOKENS[2],
   amountIn: '',
@@ -82,6 +101,8 @@ export const useStore = create<AppState>((set, get) => ({
   })),
   setSlippage: (slippage) => set({ slippage }),
   setGasSpeed: (gasSpeed) => set({ gasSpeed }),
+
+  // Markets
   selectedPair: null,
   setSelectedPair: (pair) => set({ selectedPair: pair }),
   pairs: TRADING_PAIRS,
@@ -93,6 +114,8 @@ export const useStore = create<AppState>((set, get) => ({
       return { ...pair, price: newPrice, change24h: newChange24h };
     }),
   })),
+
+  // UI
   activeTab: 'swap',
   setActiveTab: (tab) => set({ activeTab: tab }),
   notifications: [],
