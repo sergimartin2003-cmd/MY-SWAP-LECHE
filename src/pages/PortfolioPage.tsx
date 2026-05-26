@@ -5,7 +5,7 @@ import { TOKENS, TRANSACTIONS } from '../data/tokens';
 import { useState } from 'react';
 
 export default function PortfolioPage() {
-  const { walletConnected, walletAddress, connectWallet } = useStore();
+  const { walletConnected, walletAddress, setShowWalletPanel } = useStore();
   const [txFilter, setTxFilter] = useState<'all' | 'swap' | 'add' | 'remove'>('all');
 
   const ownedTokens = TOKENS.filter(t => (t.balance ?? 0) > 0);
@@ -23,22 +23,14 @@ export default function PortfolioPage() {
   if (!walletConnected) {
     return (
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-20 flex flex-col items-center justify-center text-center">
-        <motion.div
-          initial={{ opacity: 0, scale: 0.8 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ type: 'spring', bounce: 0.4 }}
-        >
+        <motion.div initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} transition={{ type: 'spring', bounce: 0.4 }}>
           <div className="w-24 h-24 rounded-3xl flex items-center justify-center mx-auto mb-6" style={{ background: 'linear-gradient(135deg, rgba(123,47,255,0.2), rgba(0,212,255,0.2))', border: '1px solid rgba(123,47,255,0.3)' }}>
             <Wallet size={40} className="text-neon-blue" />
           </div>
           <h2 className="text-3xl font-black text-white mb-3">Connect your wallet</h2>
           <p className="text-white/40 mb-8 max-w-sm">Connect your wallet to view your portfolio, balances, and transaction history.</p>
-          <motion.button
-            whileHover={{ scale: 1.04, boxShadow: '0 0 40px rgba(123,47,255,0.5)' }}
-            whileTap={{ scale: 0.96 }}
-            onClick={connectWallet}
-            className="btn-primary max-w-xs"
-          >
+          <motion.button whileHover={{ scale: 1.04, boxShadow: '0 0 40px rgba(123,47,255,0.5)' }} whileTap={{ scale: 0.96 }}
+            onClick={() => setShowWalletPanel(true)} className="btn-primary max-w-xs">
             Connect Wallet
           </motion.button>
         </motion.div>
@@ -48,12 +40,9 @@ export default function PortfolioPage() {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
-      <motion.div
-        initial={{ opacity: 0, y: -15 }}
-        animate={{ opacity: 1, y: 0 }}
+      <motion.div initial={{ opacity: 0, y: -15 }} animate={{ opacity: 1, y: 0 }}
         className="glass-card p-6 mb-6"
-        style={{ background: 'linear-gradient(135deg, rgba(123,47,255,0.1), rgba(0,212,255,0.05))', border: '1px solid rgba(123,47,255,0.2)' }}
-      >
+        style={{ background: 'linear-gradient(135deg, rgba(123,47,255,0.1), rgba(0,212,255,0.05))', border: '1px solid rgba(123,47,255,0.2)' }}>
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <p className="text-sm text-white/40 mb-1">Total Portfolio Value</p>
@@ -77,13 +66,7 @@ export default function PortfolioPage() {
             const pct = (value / totalValue) * 100;
             const isPos = token.change24h >= 0;
             return (
-              <motion.div
-                key={token.symbol}
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: i * 0.06 }}
-                className="glass-card-hover p-4"
-              >
+              <motion.div key={token.symbol} initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.06 }} className="glass-card-hover p-4">
                 <div className="flex items-center gap-3">
                   <img src={token.logoUrl} alt={token.symbol} className="w-10 h-10 rounded-full" onError={e => { (e.target as HTMLImageElement).style.display='none'; }} />
                   <div className="flex-1 min-w-0">
@@ -98,13 +81,8 @@ export default function PortfolioPage() {
                       </div>
                     </div>
                     <div className="h-1 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.05)' }}>
-                      <motion.div
-                        initial={{ width: 0 }}
-                        animate={{ width: `${pct}%` }}
-                        transition={{ duration: 0.8, delay: i * 0.06 + 0.2 }}
-                        className="h-full rounded-full"
-                        style={{ background: 'linear-gradient(90deg, #7B2FFF, #00D4FF)' }}
-                      />
+                      <motion.div initial={{ width: 0 }} animate={{ width: `${pct}%` }} transition={{ duration: 0.8, delay: i * 0.06 + 0.2 }}
+                        className="h-full rounded-full" style={{ background: 'linear-gradient(90deg, #7B2FFF, #00D4FF)' }} />
                     </div>
                     <div className="flex justify-between mt-1">
                       <span className="text-xs text-white/20">{pct.toFixed(1)}% of portfolio</span>
@@ -128,45 +106,28 @@ export default function PortfolioPage() {
             {(['all', 'swap', 'add', 'remove'] as const).map(f => (
               <button key={f} onClick={() => setTxFilter(f)}
                 className="flex-1 py-1 rounded-lg text-xs font-medium capitalize transition-all"
-                style={{
-                  background: txFilter === f ? 'rgba(123,47,255,0.3)' : 'transparent',
-                  color: txFilter === f ? '#fff' : 'rgba(255,255,255,0.4)',
-                }}>
+                style={{ background: txFilter === f ? 'rgba(123,47,255,0.3)' : 'transparent', color: txFilter === f ? '#fff' : 'rgba(255,255,255,0.4)' }}>
                 {f}
               </button>
             ))}
           </div>
-
           <div className="space-y-2">
             {filteredTx.map((tx, i) => (
-              <motion.div
-                key={tx.hash}
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: i * 0.05 }}
-                className="glass-card p-3"
-              >
+              <motion.div key={tx.hash} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }} className="glass-card p-3">
                 <div className="flex items-start gap-3">
                   <div className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 mt-0.5"
                     style={{ background: tx.type === 'swap' ? 'rgba(0,212,255,0.15)' : tx.type === 'add' ? 'rgba(0,255,136,0.15)' : 'rgba(255,45,120,0.15)' }}>
-                    {tx.type === 'swap' ? <ArrowUpRight size={14} style={{ color: '#00D4FF' }} /> :
-                     tx.type === 'add' ? <Plus size={14} style={{ color: '#00FF88' }} /> :
-                     <ArrowDownLeft size={14} style={{ color: '#FF2D78' }} />}
+                    {tx.type === 'swap' ? <ArrowUpRight size={14} style={{ color: '#00D4FF' }} /> : tx.type === 'add' ? <Plus size={14} style={{ color: '#00FF88' }} /> : <ArrowDownLeft size={14} style={{ color: '#FF2D78' }} />}
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between gap-2">
                       <span className="text-xs font-semibold text-white capitalize">{tx.type}</span>
                       <span className="text-xs px-1.5 py-0.5 rounded-full font-medium"
-                        style={{
-                          background: tx.status === 'confirmed' ? 'rgba(0,255,136,0.1)' : tx.status === 'pending' ? 'rgba(255,184,0,0.1)' : 'rgba(255,45,120,0.1)',
-                          color: tx.status === 'confirmed' ? '#00FF88' : tx.status === 'pending' ? '#FFB800' : '#FF2D78',
-                        }}>
+                        style={{ background: tx.status === 'confirmed' ? 'rgba(0,255,136,0.1)' : tx.status === 'pending' ? 'rgba(255,184,0,0.1)' : 'rgba(255,45,120,0.1)', color: tx.status === 'confirmed' ? '#00FF88' : tx.status === 'pending' ? '#FFB800' : '#FF2D78' }}>
                         {tx.status}
                       </span>
                     </div>
-                    <p className="text-xs text-white/50 mt-1 font-mono">
-                      {tx.amountIn.toFixed(4)} {tx.tokenIn.symbol} → {tx.amountOut.toFixed(4)} {tx.tokenOut.symbol}
-                    </p>
+                    <p className="text-xs text-white/50 mt-1 font-mono">{tx.amountIn.toFixed(4)} {tx.tokenIn.symbol} → {tx.amountOut.toFixed(4)} {tx.tokenOut.symbol}</p>
                     <p className="text-xs text-white/20 mt-0.5">{formatTime(tx.timestamp)}</p>
                   </div>
                 </div>

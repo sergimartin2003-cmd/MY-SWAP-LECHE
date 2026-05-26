@@ -3,6 +3,8 @@ import Navbar from './components/Navbar';
 import PriceTicker from './components/PriceTicker';
 import NotificationToast from './components/NotificationToast';
 import AuroraBackground from './components/AuroraBackground';
+import WalletPanel from './components/WalletPanel';
+import WalletSync from './components/WalletSync';
 import SwapPage from './pages/SwapPage';
 import MarketsPage from './pages/MarketsPage';
 import PoolsPage from './pages/PoolsPage';
@@ -48,7 +50,6 @@ export default function App() {
             </motion.div>
           </AnimatePresence>
         </main>
-
         <footer className="mt-auto py-6 border-t border-white/5 text-center">
           <p className="text-xs" style={{ color: 'rgba(255,255,255,0.15)' }}>
             NexSwap — Next-Gen DEX · Built with ❤️ ·{' '}
@@ -57,6 +58,8 @@ export default function App() {
         </footer>
       </div>
       <NotificationToast />
+      <WalletPanel />
+      <WalletSync />
     </div>
   );
 }
