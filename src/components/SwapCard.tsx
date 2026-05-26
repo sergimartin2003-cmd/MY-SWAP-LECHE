@@ -173,12 +173,39 @@ export default function SwapCard() {
                 ))}
                 <input
                   type="number" placeholder="Custom" value={customSlippage}
-                  onChange={e => { setCustomSlippage(e.target.value); setSlippage(parseFloat(e.target.value) || 0.5); }}
+                  onChange={e => {
+                    const raw = e.target.value;
+                    setCustomSlippage(raw);
+                    const parsed = parseFloat(raw);
+                    if (!isNaN(parsed) && parsed > 0 && parsed <= 50) {
+                      setSlippage(parsed);
+                    } else if (!raw) {
+                      setSlippage(0.5); // reset to default when cleared
+                    }
+                  }}
+                  min="0.01" max="50" step="0.1"
                   className="w-20 px-2 py-1.5 rounded-lg text-xs font-medium outline-none text-white placeholder-white/30"
-                  style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)' }}
+                  style={{
+                    background: customSlippage && (parseFloat(customSlippage) <= 0 || parseFloat(customSlippage) > 50)
+                      ? 'rgba(255,45,120,0.12)' : 'rgba(255,255,255,0.05)',
+                    border: customSlippage && (parseFloat(customSlippage) <= 0 || parseFloat(customSlippage) > 50)
+                      ? '1px solid rgba(255,45,120,0.4)' : '1px solid rgba(255,255,255,0.08)',
+                  }}
                 />
               </div>
             </div>
+            {slippage > 5 && (
+              <p className="text-xs flex items-center gap-1 mt-1" style={{ color: '#FFB800' }}>
+                <AlertTriangle size={11} />
+                High slippage — your trade may be frontrun
+              </p>
+            )}
+            {slippage > 20 && (
+              <p className="text-xs flex items-center gap-1" style={{ color: '#FF2D78' }}>
+                <AlertTriangle size={11} />
+                Extremely high slippage — risk of losing most of your funds
+              </p>
+            )}
             <div>
               <p className="text-xs text-white/40 mb-2">Gas Speed</p>
               <div className="grid grid-cols-4 gap-1.5">

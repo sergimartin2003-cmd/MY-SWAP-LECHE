@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import {
   useAccount, useWriteContract, useReadContract, useWaitForTransactionReceipt,
 } from 'wagmi';
-import { maxUint256 } from 'viem';
+import { encodeFunctionData } from 'viem';
 import type { Token } from '../types';
 import { NATIVE_ETH } from '../data/tokens';
 import {
@@ -11,6 +11,24 @@ import {
   PROTOCOL_FEE_BPS,
 } from '../config/uniswap';
 import { toTokenUnits, type UniswapQuote } from './useUniswapQuote';
+
+// SwapRouter02 multicall — wraps exactInputSingle with a deadline, preventing
+// sandwich-attack replays that might execute the swap after prices have moved.
+const MULTICALL_ABI = [
+  {
+    name: 'multicall',
+    type: 'function',
+    stateMutability: 'payable',
+    inputs: [
+      { name: 'deadline', type: 'uint256' },
+      { name: 'data',     type: 'bytes[]' },
+    ],
+    outputs: [{ name: 'results', type: 'bytes[]' }],
+  },
+] as const;
+
+// Deadline: 5 minutes from now (standard practice)
+const DEADLINE_SECONDS = 300;
 
 export type SwapStatus =
   | 'idle'
@@ -42,7 +60,7 @@ export function useUniswapSwap({
   const isNativeIn    = tokenIn.address  === NATIVE_ETH;
   const isNativeOut   = tokenOut.address === NATIVE_ETH;
 
-  /* ── Approval ─────────────────────────────────────────────────────── */
+  /* ── Approval ──────────────────────────────────────────────────── */
   const {
     writeContract: doApprove,
     data:          approvalHash,
@@ -54,7 +72,7 @@ export function useUniswapSwap({
   const { isLoading: isApprovalConfirming, isSuccess: isApprovalConfirmed } =
     useWaitForTransactionReceipt({ hash: approvalHash });
 
-  /* ── Swap ─────────────────────────────────────────────────────────── */
+  /* ── Swap ──────────────────────────────────────────────────────── */
   const {
     writeContract: doSwap,
     data:          swapHash,
@@ -66,7 +84,9 @@ export function useUniswapSwap({
   const { isLoading: isSwapConfirming, isSuccess: isSwapConfirmed } =
     useWaitForTransactionReceipt({ hash: swapHash });
 
-  /* ── Allowance check ───────────────────────────────────────────────── */
+  /* ── Allowance check ───────────────────────────────────────────── */
+  const amountInWei = amountIn ? toTokenUnits(amountIn, tokenIn.decimals ?? 18) : 0n;
+
   const { data: allowance, refetch: refetchAllowance } = useReadContract({
     address:      tokenIn.address as `0x${string}`,
     abi:          ERC20_ABI,
@@ -75,10 +95,9 @@ export function useUniswapSwap({
     query:        { enabled: !!address && !isNativeIn && !!routerAddress },
   });
 
-  const amountInWei   = amountIn ? toTokenUnits(amountIn, tokenIn.decimals ?? 18) : 0n;
   const needsApproval = !isNativeIn && allowance !== undefined && (allowance as bigint) < amountInWei;
 
-  /* ── State watchers ───────────────────────────────────────────────── */
+  /* ── State watchers ────────────────────────────────────────────── */
   useEffect(() => {
     if (isApprovalConfirmed) { setStatus('approved'); refetchAllowance(); }
   }, [isApprovalConfirmed, refetchAllowance]);
@@ -90,18 +109,18 @@ export function useUniswapSwap({
   useEffect(() => {
     if (approvalWriteError && status === 'approving') {
       setStatus('error');
-      setError(approvalWriteError.message.split('\n')[0].slice(0, 100));
+      setError(approvalWriteError.message.split('\n')[0].slice(0, 120));
     }
   }, [approvalWriteError, status]);
 
   useEffect(() => {
     if (swapWriteError && status === 'swapping') {
       setStatus('error');
-      setError(swapWriteError.message.split('\n')[0].slice(0, 100));
+      setError(swapWriteError.message.split('\n')[0].slice(0, 120));
     }
   }, [swapWriteError, status]);
 
-  /* ── Approve ──────────────────────────────────────────────────────── */
+  /* ── Approve (exact amount — not unlimited) ────────────────────── */
   const approve = () => {
     if (!address || !routerAddress) return;
     setStatus('approving');
@@ -110,11 +129,13 @@ export function useUniswapSwap({
       address:      tokenIn.address as `0x${string}`,
       abi:          ERC20_ABI,
       functionName: 'approve',
-      args:         [routerAddress, maxUint256],
+      // Approve 10× the current amount so the user doesn't need to re-approve
+      // on every small trade, while still avoiding unlimited (maxUint256) exposure.
+      args:         [routerAddress, amountInWei * 10n],
     });
   };
 
-  /* ── Execute swap ─────────────────────────────────────────────────── */
+  /* ── Execute swap (via multicall + deadline) ───────────────────── */
   const executeSwap = () => {
     if (!quote || !address || !routerAddress || !weth) return;
 
@@ -123,16 +144,14 @@ export function useUniswapSwap({
 
     const slippageBps  = BigInt(Math.round(slippage * 100));
     const feeBps       = BigInt(PROTOCOL_FEE_BPS);
-    // Tighten amountOutMin by both slippage tolerance AND platform fee
     const totalBps     = slippageBps + feeBps;
     const amountOutMin = (quote.amountOut * (10000n - totalBps)) / 10000n;
 
-    // Route native ETH through WETH
     const effectiveIn  = isNativeIn  ? weth : tokenIn.address  as `0x${string}`;
     const effectiveOut = isNativeOut ? weth : tokenOut.address as `0x${string}`;
 
-    doSwap({
-      address:      routerAddress,
+    // Encode the exactInputSingle call for use in multicall
+    const swapCallData = encodeFunctionData({
       abi:          SWAP_ROUTER_ABI,
       functionName: 'exactInputSingle',
       args: [{
@@ -144,7 +163,17 @@ export function useUniswapSwap({
         amountOutMinimum:  amountOutMin,
         sqrtPriceLimitX96: 0n,
       }],
-      value: isNativeIn ? amountInWei : 0n,
+    });
+
+    // Wrap in multicall with deadline — protects against MEV sandwich attacks
+    const deadline = BigInt(Math.floor(Date.now() / 1000) + DEADLINE_SECONDS);
+
+    doSwap({
+      address:      routerAddress,
+      abi:          MULTICALL_ABI,
+      functionName: 'multicall',
+      args:         [deadline, [swapCallData]],
+      value:        isNativeIn ? amountInWei : 0n,
     });
   };
 

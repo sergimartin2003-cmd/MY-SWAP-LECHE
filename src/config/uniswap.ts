@@ -46,10 +46,23 @@ export const SWAP_ROUTER_ADDRESS: Record<number, `0x${string}`> = {
 //
 export const PROTOCOL_FEE_BPS = 25; // 25 bps = 0.25 %
 
-// Your treasury / fee-recipient wallet address
+// Your treasury / fee-recipient wallet address.
+// Set VITE_TREASURY_ADDRESS in your .env / Vercel environment variables.
+// WARNING: if left as zero address, platform fees will be burned (lost forever).
 export const TREASURY_ADDRESS =
   (import.meta.env.VITE_TREASURY_ADDRESS as string) ||
-  '0x0000000000000000000000000000000000000000'; // ← replace with your address
+  '0x0000000000000000000000000000000000000000';
+
+if (
+  typeof window !== 'undefined' &&
+  TREASURY_ADDRESS === '0x0000000000000000000000000000000000000000'
+) {
+  console.warn(
+    '[NexSwap] ⚠️  VITE_TREASURY_ADDRESS is not set. ' +
+    'Platform fees will be burned to the zero address until you configure it. ' +
+    'Add VITE_TREASURY_ADDRESS=<your-wallet> to your .env or Vercel env vars.',
+  );
+}
 
 // ── Pool fee tiers ────────────────────────────────────────────────────────
 

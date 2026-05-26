@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { usePublicClient } from 'wagmi';
 import type { Token } from '../types';
 import { NATIVE_ETH } from '../data/tokens';
@@ -35,10 +35,15 @@ export function useUniswapQuote(
   const [loading, setLoading] = useState(false);
   const [error,   setError]   = useState<string | null>(null);
 
+  // Monotonically-increasing counter — stale async results check this
+  // before updating state (poor-man's AbortController for eth_call batches)
+  const reqIdRef = useRef(0);
+
   const fetchQuote = useCallback(async () => {
     const num = parseFloat(amountIn);
     if (!amountIn || isNaN(num) || num <= 0 || !publicClient) {
       setQuote(null);
+      setLoading(false);
       return;
     }
 
@@ -50,11 +55,14 @@ export function useUniswapQuote(
     const effectiveOut = (tokenOut.address === NATIVE_ETH ? weth : tokenOut.address) as `0x${string}`;
     const amountInWei  = toTokenUnits(amountIn, tokenIn.decimals ?? 18);
 
+    // Stamp this request; any response that arrives after a newer request
+    // has started will be discarded, preventing stale-closure overwrites
+    const currentId = ++reqIdRef.current;
+
     setLoading(true);
     setError(null);
 
     try {
-      // Try all fee tiers in parallel — pick the one with the best output
       type QuoteResult = { fee: FeeTier; amountOut: bigint; gasEstimate: bigint };
 
       const results = await Promise.allSettled(
@@ -71,50 +79,50 @@ export function useUniswapQuote(
               sqrtPriceLimitX96: 0n,
             }],
           });
-          // out = [amountOut, sqrtPriceX96After, initializedTicksCrossed, gasEstimate]
           return { fee, amountOut: out[0], gasEstimate: out[3] };
         }),
       );
+
+      // Discard if a newer request is in flight
+      if (currentId !== reqIdRef.current) return;
 
       const successes = results
         .filter((r): r is PromiseFulfilledResult<QuoteResult> => r.status === 'fulfilled')
         .map(r => r.value)
         .sort((a, b) => (b.amountOut > a.amountOut ? 1 : -1));
 
-      if (successes.length === 0) {
-        throw new Error('No liquidity found for this pair on this network');
-      }
+      if (successes.length === 0) throw new Error('No liquidity found for this pair on this network');
 
-      const best        = successes[0];
-      const destDec     = tokenOut.decimals ?? 18;
-      const formatted   = (Number(best.amountOut) / 10 ** destDec).toFixed(
-        destDec > 8 ? 6 : destDec,
-      );
+      const best      = successes[0];
+      const destDec   = tokenOut.decimals ?? 18;
+      const formatted = (Number(best.amountOut) / 10 ** destDec).toFixed(destDec > 8 ? 6 : destDec);
 
-      setQuote({
-        amountOut:          best.amountOut,
-        amountOutFormatted: formatted,
-        feeTier:            best.fee,
-        gasEstimate:        best.gasEstimate,
-      });
+      setQuote({ amountOut: best.amountOut, amountOutFormatted: formatted, feeTier: best.fee, gasEstimate: best.gasEstimate });
     } catch (err) {
+      if (currentId !== reqIdRef.current) return;
       const msg = err instanceof Error ? err.message : 'Quote failed';
       const isNoise =
-        msg.includes('interrupted') ||
-        msg.includes('aborted') ||
-        msg.includes('timeout') ||
-        msg.includes('user rejected');
+        msg.includes('interrupted') || msg.includes('aborted') ||
+        msg.includes('timeout')     || msg.includes('user rejected') ||
+        msg.includes('signal');
       if (!isNoise) setError(msg);
       setQuote(null);
     } finally {
-      setLoading(false);
+      if (currentId === reqIdRef.current) setLoading(false);
     }
   }, [tokenIn, tokenOut, amountIn, chainId, publicClient]);
 
   useEffect(() => {
+    // Clear previous quote immediately when inputs change (no stale display)
+    setQuote(null);
+    setError(null);
+
+    const num = parseFloat(amountIn);
+    if (!amountIn || isNaN(num) || num <= 0) { setLoading(false); return; }
+
     const timer = setTimeout(fetchQuote, 600);
     return () => clearTimeout(timer);
-  }, [fetchQuote]);
+  }, [fetchQuote, amountIn]);
 
   return { quote, loading, error };
 }

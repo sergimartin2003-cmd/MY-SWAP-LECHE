@@ -5,11 +5,15 @@ import { TOKENS, TRANSACTIONS } from '../data/tokens';
 import { useState } from 'react';
 
 export default function PortfolioPage() {
-  const { walletConnected, walletAddress, setShowWalletPanel } = useStore();
+  const { walletConnected, walletAddress, tokenBalances, setShowWalletPanel } = useStore();
   const [txFilter, setTxFilter] = useState<'all' | 'swap' | 'add' | 'remove'>('all');
 
-  const ownedTokens = TOKENS.filter(t => (t.balance ?? 0) > 0);
-  const totalValue = ownedTokens.reduce((sum, t) => sum + (t.balance ?? 0) * t.price, 0);
+  // Use real on-chain balances when connected; fall back to static demo data
+  const getBalance = (t: typeof TOKENS[0]) =>
+    walletConnected ? (tokenBalances[t.address] ?? 0) : (t.balance ?? 0);
+
+  const ownedTokens = TOKENS.filter(t => getBalance(t) > 0);
+  const totalValue  = ownedTokens.reduce((sum, t) => sum + getBalance(t) * t.price, 0);
 
   const filteredTx = TRANSACTIONS.filter(tx => txFilter === 'all' || tx.type === txFilter);
 
@@ -80,7 +84,8 @@ export default function PortfolioPage() {
         <div className="lg:col-span-2 space-y-3">
           <h2 className="text-sm font-semibold text-white/50 uppercase tracking-wider">Holdings</h2>
           {ownedTokens.map((token, i) => {
-            const value = (token.balance ?? 0) * token.price;
+            const bal   = getBalance(token);
+            const value = bal * token.price;
             const pct = (value / totalValue) * 100;
             const isPos = token.change24h >= 0;
             return (
@@ -101,7 +106,7 @@ export default function PortfolioPage() {
                       </div>
                       <div className="text-right">
                         <p className="text-sm font-bold font-mono text-white">${value.toLocaleString('en-US', { maximumFractionDigits: 2 })}</p>
-                        <p className="text-xs font-mono text-white/40">{token.balance?.toFixed(4)} {token.symbol}</p>
+                        <p className="text-xs font-mono text-white/40">{bal.toFixed(4)} {token.symbol}</p>
                       </div>
                     </div>
                     {/* Progress bar */}

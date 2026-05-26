@@ -14,6 +14,7 @@ import {
 import { mainnet, polygon, arbitrum, optimism, base } from 'wagmi/chains';
 import { useStore } from '../store/useStore';
 import { CHAIN_META } from '../config/wagmi';
+import { TOKENS } from '../data/tokens';
 
 const CHAINS = [mainnet, polygon, arbitrum, optimism, base];
 
@@ -41,8 +42,9 @@ function BalanceRow({ symbol, amount, usdValue, logoUrl }: {
 
 /* ─────────────────────────── Main panel ─────────────────────────── */
 export default function WalletPanel() {
-  const show          = useStore(s => s.showWalletPanel);
-  const setShow       = useStore(s => s.setShowWalletPanel);
+  const show           = useStore(s => s.showWalletPanel);
+  const setShow        = useStore(s => s.setShowWalletPanel);
+  const tokenBalances  = useStore(s => s.tokenBalances);
 
   const { address, isConnected, chain } = useAccount();
   const { connect, connectors, isPending, error: connectError } = useConnect();
@@ -301,14 +303,35 @@ export default function WalletPanel() {
                     ))}
                   </div>
 
-                  {/* Token balances header */}
+                  {/* Token balances — real on-chain data from store */}
                   <div>
                     <p className="text-xs font-semibold text-white/40 uppercase tracking-wider mb-2">Assets</p>
                     <div className="rounded-xl divide-y divide-white/[0.04]"
                       style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
-                      {MOCK_TOKEN_BALANCES.map(t => (
-                        <BalanceRow key={t.symbol} {...t} />
-                      ))}
+                      {(() => {
+                        const ownedTokens = TOKENS.filter(t => {
+                          const bal = tokenBalances[t.address] ?? t.balance ?? 0;
+                          return bal > 0;
+                        });
+                        if (ownedTokens.length === 0) {
+                          return (
+                            <p className="text-xs text-white/30 text-center py-4">No tokens found</p>
+                          );
+                        }
+                        return ownedTokens.map(t => {
+                          const bal = tokenBalances[t.address] ?? t.balance ?? 0;
+                          const usd = bal * t.price;
+                          return (
+                            <BalanceRow
+                              key={t.symbol}
+                              symbol={t.symbol}
+                              logoUrl={t.logoUrl}
+                              amount={`${bal.toFixed(bal < 0.001 ? 8 : 4)}`}
+                              usdValue={`$${usd.toLocaleString('en-US', { maximumFractionDigits: 2 })}`}
+                            />
+                          );
+                        });
+                      })()}
                     </div>
                   </div>
                 </>
@@ -378,11 +401,3 @@ function AddressAvatar({ address }: { address: string }) {
   );
 }
 
-// Static mock asset list until we add real balance fetching per token
-const MOCK_TOKEN_BALANCES = [
-  { symbol: 'ETH',  amount: '1.5000',   usdValue: '$5,763.22', logoUrl: 'https://assets.coingecko.com/coins/images/279/small/ethereum.png' },
-  { symbol: 'USDC', amount: '2,500.00', usdValue: '$2,500.50', logoUrl: 'https://assets.coingecko.com/coins/images/6319/small/USD_Coin_icon.png' },
-  { symbol: 'USDT', amount: '1,200.00', usdValue: '$1,199.76', logoUrl: 'https://assets.coingecko.com/coins/images/325/small/Tether.png' },
-  { symbol: 'UNI',  amount: '80.0000',  usdValue: '$996.00',   logoUrl: 'https://assets.coingecko.com/coins/images/12504/small/uniswap-uni.png' },
-  { symbol: 'LINK', amount: '45.0000',  usdValue: '$842.40',   logoUrl: 'https://assets.coingecko.com/coins/images/877/small/chainlink-new-logo.png' },
-];
