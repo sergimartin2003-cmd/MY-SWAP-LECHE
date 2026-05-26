@@ -2,13 +2,25 @@ import { create } from 'zustand';
 import type { Token, TradingPair, GasSpeed } from '../types';
 import { TOKENS, TRADING_PAIRS } from '../data/tokens';
 
+interface Notification {
+  id: string;
+  type: 'success' | 'error' | 'warning' | 'info';
+  title: string;
+  message: string;
+}
+
 interface AppState {
-  // Wallet
+  // Wallet (synced from wagmi via WalletSync component)
   walletConnected: boolean;
   walletAddress: string;
   walletBalance: number;
-  connectWallet: () => void;
-  disconnectWallet: () => void;
+  setWalletState: (connected: boolean, address: string, balance?: number) => void;
+
+  // Wallet panel
+  showWalletPanel: boolean;
+  setShowWalletPanel: (show: boolean) => void;
+  connectWallet: () => void;        // opens the panel
+  disconnectWallet: () => void;     // wagmi disconnect called separately
 
   // Swap
   tokenIn: Token;
@@ -21,6 +33,7 @@ interface AppState {
   setTokenIn: (token: Token) => void;
   setTokenOut: (token: Token) => void;
   setAmountIn: (amount: string) => void;
+  setAmountOut: (amount: string) => void;
   flipTokens: () => void;
   setSlippage: (slippage: number) => void;
   setGasSpeed: (speed: GasSpeed) => void;
@@ -39,28 +52,19 @@ interface AppState {
   removeNotification: (id: string) => void;
 }
 
-interface Notification {
-  id: string;
-  type: 'success' | 'error' | 'warning' | 'info';
-  title: string;
-  message: string;
-}
-
 export const useStore = create<AppState>((set, get) => ({
   // Wallet
   walletConnected: false,
   walletAddress: '',
   walletBalance: 0,
-  connectWallet: () => set({
-    walletConnected: true,
-    walletAddress: '0x742d35Cc6634C0532925a3b844Bc454e4438f44e',
-    walletBalance: 4.82,
-  }),
-  disconnectWallet: () => set({
-    walletConnected: false,
-    walletAddress: '',
-    walletBalance: 0,
-  }),
+  setWalletState: (connected, address, balance = 0) =>
+    set({ walletConnected: connected, walletAddress: address, walletBalance: balance }),
+
+  // Wallet panel
+  showWalletPanel: false,
+  setShowWalletPanel: (show) => set({ showWalletPanel: show }),
+  connectWallet: () => set({ showWalletPanel: true }),
+  disconnectWallet: () => set({ walletConnected: false, walletAddress: '', walletBalance: 0 }),
 
   // Swap
   tokenIn: TOKENS[0],
@@ -77,12 +81,13 @@ export const useStore = create<AppState>((set, get) => ({
     const numAmount = parseFloat(amount);
     if (!isNaN(numAmount) && numAmount > 0) {
       const rate = tokenIn.price / tokenOut.price;
-      const impact = Math.min(numAmount * tokenIn.price / 1000000 * 0.3, 15);
+      const impact = Math.min(numAmount * tokenIn.price / 1_000_000 * 0.3, 15);
       set({ amountIn: amount, amountOut: (numAmount * rate * (1 - impact / 100)).toFixed(6), priceImpact: impact });
     } else {
       set({ amountIn: amount, amountOut: '', priceImpact: 0 });
     }
   },
+  setAmountOut: (amount) => set({ amountOut: amount }),
   flipTokens: () => set((state) => ({
     tokenIn: state.tokenOut,
     tokenOut: state.tokenIn,
@@ -112,7 +117,7 @@ export const useStore = create<AppState>((set, get) => ({
   addNotification: (notification) => {
     const id = Math.random().toString(36).slice(2);
     set((state) => ({ notifications: [...state.notifications, { ...notification, id }] }));
-    setTimeout(() => get().removeNotification(id), 5000);
+    setTimeout(() => get().removeNotification(id), 6000);
   },
   removeNotification: (id) => set((state) => ({
     notifications: state.notifications.filter(n => n.id !== id),

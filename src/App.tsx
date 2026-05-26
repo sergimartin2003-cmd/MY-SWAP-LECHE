@@ -3,6 +3,8 @@ import Navbar from './components/Navbar';
 import PriceTicker from './components/PriceTicker';
 import NotificationToast from './components/NotificationToast';
 import AuroraBackground from './components/AuroraBackground';
+import WalletPanel from './components/WalletPanel';
+import WalletSync from './components/WalletSync';
 import SwapPage from './pages/SwapPage';
 import MarketsPage from './pages/MarketsPage';
 import PoolsPage from './pages/PoolsPage';
@@ -57,6 +59,8 @@ export default function App() {
         </footer>
       </div>
       <NotificationToast />
+      <WalletPanel />
+      <WalletSync />
     </div>
   );
 }

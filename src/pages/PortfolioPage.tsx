@@ -5,7 +5,7 @@ import { TOKENS, TRANSACTIONS } from '../data/tokens';
 import { useState } from 'react';
 
 export default function PortfolioPage() {
-  const { walletConnected, walletAddress, connectWallet } = useStore();
+  const { walletConnected, walletAddress, setShowWalletPanel } = useStore();
   const [txFilter, setTxFilter] = useState<'all' | 'swap' | 'add' | 'remove'>('all');
 
   const ownedTokens = TOKENS.filter(t => (t.balance ?? 0) > 0);
@@ -37,7 +37,7 @@ export default function PortfolioPage() {
           <motion.button
             whileHover={{ scale: 1.04, boxShadow: '0 0 40px rgba(123,47,255,0.5)' }}
             whileTap={{ scale: 0.96 }}
-            onClick={connectWallet}
+            onClick={() => setShowWalletPanel(true)}
             className="btn-primary max-w-xs"
           >
             Connect Wallet

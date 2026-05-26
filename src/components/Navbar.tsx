@@ -1,20 +1,23 @@
 import { motion } from 'framer-motion';
-import { Zap, Bell, ChevronDown, Copy, ExternalLink, LogOut } from 'lucide-react';
-import { useState } from 'react';
+import { Zap, ChevronDown } from 'lucide-react';
+import { useAccount, useBalance } from 'wagmi';
 import { useStore } from '../store/useStore';
 
 const TABS = [
-  { id: 'swap', label: 'Swap' },
-  { id: 'markets', label: 'Markets' },
-  { id: 'pools', label: 'Pools' },
+  { id: 'swap',      label: 'Swap' },
+  { id: 'markets',   label: 'Markets' },
+  { id: 'pools',     label: 'Pools' },
   { id: 'portfolio', label: 'Portfolio' },
 ];
 
-export default function Navbar() {
-  const { walletConnected, walletAddress, connectWallet, disconnectWallet, activeTab, setActiveTab } = useStore();
-  const [showWalletMenu, setShowWalletMenu] = useState(false);
+function truncate(addr: string) {
+  return `${addr.slice(0, 6)}...${addr.slice(-4)}`;
+}
 
-  const truncate = (addr: string) => `${addr.slice(0, 6)}...${addr.slice(-4)}`;
+export default function Navbar() {
+  const { activeTab, setActiveTab, setShowWalletPanel } = useStore();
+  const { address, isConnected } = useAccount();
+  const { data: balance } = useBalance({ address });
 
   return (
     <motion.nav
@@ -22,23 +25,37 @@ export default function Navbar() {
       animate={{ y: 0, opacity: 1 }}
       transition={{ duration: 0.5, ease: 'easeOut' }}
       className="sticky top-0 z-50 w-full"
-      style={{ background: 'rgba(5, 5, 16, 0.8)', backdropFilter: 'blur(24px)', borderBottom: '1px solid rgba(255,255,255,0.06)' }}
+      style={{
+        background: 'rgba(5, 5, 16, 0.85)',
+        backdropFilter: 'blur(24px)',
+        borderBottom: '1px solid rgba(255,255,255,0.06)',
+      }}
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 flex items-center justify-between h-16">
+
         {/* Logo */}
-        <motion.div className="flex items-center gap-2 cursor-pointer" whileHover={{ scale: 1.02 }}>
+        <motion.div
+          className="flex items-center gap-2 cursor-pointer"
+          whileHover={{ scale: 1.02 }}
+          onClick={() => setActiveTab('swap')}
+        >
           <div className="relative">
-            <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #7B2FFF, #00D4FF)' }}>
+            <div className="w-8 h-8 rounded-lg flex items-center justify-center"
+              style={{ background: 'linear-gradient(135deg, #7B2FFF, #00D4FF)' }}>
               <Zap size={16} className="text-white" />
             </div>
-            <div className="absolute inset-0 rounded-lg blur-md opacity-50" style={{ background: 'linear-gradient(135deg, #7B2FFF, #00D4FF)' }} />
+            <div className="absolute inset-0 rounded-lg blur-md opacity-50"
+              style={{ background: 'linear-gradient(135deg, #7B2FFF, #00D4FF)' }} />
           </div>
           <span className="text-xl font-black text-gradient">NexSwap</span>
         </motion.div>
 
-        {/* Tabs */}
-        <div className="hidden md:flex items-center gap-1 p-1 rounded-xl" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
-          {TABS.map((tab) => (
+        {/* Desktop tabs */}
+        <div
+          className="hidden md:flex items-center gap-1 p-1 rounded-xl"
+          style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}
+        >
+          {TABS.map(tab => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
@@ -60,63 +77,34 @@ export default function Navbar() {
 
         {/* Right side */}
         <div className="flex items-center gap-3">
-          <motion.button
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            className="relative p-2 rounded-xl"
-            style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)' }}
-          >
-            <Bell size={18} className="text-white/60" />
-            <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-neon-purple" />
-          </motion.button>
-
-          {walletConnected ? (
-            <div className="relative">
-              <motion.button
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                onClick={() => setShowWalletMenu(!showWalletMenu)}
-                className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium"
-                style={{ background: 'rgba(123,47,255,0.15)', border: '1px solid rgba(123,47,255,0.3)', color: '#fff' }}
-              >
-                <div className="w-2 h-2 rounded-full bg-neon-green animate-pulse" />
-                <span>{truncate(walletAddress)}</span>
-                <ChevronDown size={14} className="text-white/60" />
-              </motion.button>
-              {showWalletMenu && (
-                <motion.div
-                  initial={{ opacity: 0, y: 8, scale: 0.95 }}
-                  animate={{ opacity: 1, y: 0, scale: 1 }}
-                  exit={{ opacity: 0, y: 8, scale: 0.95 }}
-                  className="absolute right-0 mt-2 w-52 rounded-xl overflow-hidden z-50"
-                  style={{ background: '#0f0f24', border: '1px solid rgba(255,255,255,0.1)', boxShadow: '0 20px 60px rgba(0,0,0,0.5)' }}
-                >
-                  <div className="px-4 py-3 border-b border-white/5">
-                    <p className="text-xs text-white/40 mb-1">Connected wallet</p>
-                    <p className="text-sm font-mono text-white/80">{truncate(walletAddress)}</p>
-                  </div>
-                  {[
-                    { icon: Copy, label: 'Copy Address' },
-                    { icon: ExternalLink, label: 'View on Explorer' },
-                  ].map(({ icon: Icon, label }) => (
-                    <button key={label} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-white/60 hover:text-white hover:bg-white/5 transition-colors">
-                      <Icon size={15} /> {label}
-                    </button>
-                  ))}
-                  <button
-                    onClick={() => { disconnectWallet(); setShowWalletMenu(false); }}
-                    className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-red-400 hover:text-red-300 hover:bg-red-500/5 transition-colors border-t border-white/5"
-                  >
-                    <LogOut size={15} /> Disconnect
-                  </button>
-                </motion.div>
+          {isConnected && address ? (
+            /* Connected wallet pill */
+            <motion.button
+              whileHover={{ scale: 1.02, boxShadow: '0 0 20px rgba(123,47,255,0.3)' }}
+              whileTap={{ scale: 0.98 }}
+              onClick={() => setShowWalletPanel(true)}
+              className="flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium"
+              style={{
+                background: 'rgba(123,47,255,0.15)',
+                border: '1px solid rgba(123,47,255,0.35)',
+                color: '#fff',
+              }}
+            >
+              <div className="w-2 h-2 rounded-full bg-neon-green animate-pulse" />
+              {balance && (
+                <span className="hidden sm:block text-xs font-mono text-white/60 mr-0.5">
+                  {parseFloat(balance.formatted).toFixed(3)} {balance.symbol}
+                </span>
               )}
-            </div>
+              <span className="font-mono text-xs">{truncate(address)}</span>
+              <ChevronDown size={13} className="text-white/50" />
+            </motion.button>
           ) : (
+            /* Connect button */
             <motion.button
               whileHover={{ scale: 1.03, boxShadow: '0 0 30px rgba(123,47,255,0.4)' }}
               whileTap={{ scale: 0.97 }}
-              onClick={connectWallet}
+              onClick={() => setShowWalletPanel(true)}
               className="px-5 py-2 rounded-xl text-sm font-semibold text-white"
               style={{ background: 'linear-gradient(135deg, #7B2FFF, #00D4FF)' }}
             >
@@ -127,8 +115,8 @@ export default function Navbar() {
       </div>
 
       {/* Mobile tabs */}
-      <div className="md:hidden flex items-center justify-around px-4 pb-2 pt-0">
-        {TABS.map((tab) => (
+      <div className="md:hidden flex items-center justify-around px-4 pb-2">
+        {TABS.map(tab => (
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
