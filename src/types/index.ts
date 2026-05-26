@@ -38,11 +38,11 @@ export interface Pool {
   id: string;
   token0: Token;
   token1: Token;
-  apr: number;
   tvl: number;
   volume24h: number;
-  feeTier: number;
+  feeTier: number;       // stored as percentage, e.g. 0.05 = 0.05%
   myLiquidity?: number;
+  // apr is NOT stored — always computed as (volume24h * feeTier/100 / tvl) * 365 * 100
 }
 
 export interface Transaction {

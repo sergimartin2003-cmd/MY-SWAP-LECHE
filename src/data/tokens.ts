@@ -64,15 +64,26 @@ export const TRADING_PAIRS: TradingPair[] = [
   { id: 'snx-eth',   baseToken: TOKENS[9],  quoteToken: TOKENS[0],  price: 0.000843,  change24h:  5.34, volume24h:     42_000_000, liquidity:  14_000_000, tvl:  28_000_000,  high24h: 0.000885,  low24h: 0.000801,   priceHistory: generatePriceHistory(0.000843) },
 ];
 
+// Pool volumes calibrated so APR = (volume24h × feeTier/100 / tvl) × 365 × 100
+// gives realistic Uniswap v3 figures (10-30% for majors, 20-35% for alts).
+// APR is never stored here — always derived in the UI.
 export const POOLS: Pool[] = [
-  { id: 'pool-eth-usdc',  token0: TOKENS[0],  token1: TOKENS[2],  apr: 24.5, tvl: 920_000_000, volume24h:  8_200_000_000, feeTier: 0.05, myLiquidity: 1250 },
-  { id: 'pool-btc-usdc',  token0: TOKENS[1],  token1: TOKENS[2],  apr: 18.2, tvl: 2_400_000_000, volume24h: 12_000_000_000, feeTier: 0.05, myLiquidity: 0 },
-  { id: 'pool-eth-btc',   token0: TOKENS[0],  token1: TOKENS[1],  apr: 15.8, tvl: 640_000_000, volume24h:  1_100_000_000, feeTier: 0.3,  myLiquidity: 500 },
-  { id: 'pool-uni-eth',   token0: TOKENS[4],  token1: TOKENS[0],  apr: 42.1, tvl:  96_000_000, volume24h:    185_000_000, feeTier: 0.3,  myLiquidity: 0 },
-  { id: 'pool-link-eth',  token0: TOKENS[5],  token1: TOKENS[0],  apr: 38.6, tvl: 145_000_000, volume24h:    320_000_000, feeTier: 0.3,  myLiquidity: 0 },
-  { id: 'pool-matic-usdc',token0: TOKENS[14], token1: TOKENS[2],  apr: 55.3, tvl: 190_000_000, volume24h:    420_000_000, feeTier: 0.3,  myLiquidity: 0 },
-  { id: 'pool-arb-usdc',  token0: TOKENS[15], token1: TOKENS[2],  apr: 67.8, tvl:  84_000_000, volume24h:    195_000_000, feeTier: 1.0,  myLiquidity: 0 },
-  { id: 'pool-usdc-usdt', token0: TOKENS[2],  token1: TOKENS[3],  apr:  8.4, tvl: 450_000_000, volume24h:  2_200_000_000, feeTier: 0.01, myLiquidity: 3000 },
+  // ETH/USDC 0.05% — target ~22% APR  → vol = 0.22 × 920M / 0.0005 / 365 = $1.11B
+  { id: 'pool-eth-usdc',   token0: TOKENS[0],  token1: TOKENS[2],  tvl:   920_000_000, volume24h: 1_108_000_000, feeTier: 0.05, myLiquidity: 1250 },
+  // WBTC/USDC 0.05% — target ~18% APR → vol = 0.18 × 2.4B / 0.0005 / 365 = $2.37B
+  { id: 'pool-btc-usdc',   token0: TOKENS[1],  token1: TOKENS[2],  tvl: 2_400_000_000, volume24h: 2_367_000_000, feeTier: 0.05, myLiquidity: 0 },
+  // ETH/WBTC 0.30%  — target ~14% APR → vol = 0.14 × 640M / 0.003 / 365 = $81.9M
+  { id: 'pool-eth-btc',    token0: TOKENS[0],  token1: TOKENS[1],  tvl:   640_000_000, volume24h:    82_000_000, feeTier: 0.3,  myLiquidity: 500 },
+  // UNI/ETH 0.30%   — target ~28% APR → vol = 0.28 × 96M / 0.003 / 365 = $24.5M
+  { id: 'pool-uni-eth',    token0: TOKENS[4],  token1: TOKENS[0],  tvl:    96_000_000, volume24h:    24_500_000, feeTier: 0.3,  myLiquidity: 0 },
+  // LINK/ETH 0.30%  — target ~24% APR → vol = 0.24 × 145M / 0.003 / 365 = $31.8M
+  { id: 'pool-link-eth',   token0: TOKENS[5],  token1: TOKENS[0],  tvl:   145_000_000, volume24h:    31_800_000, feeTier: 0.3,  myLiquidity: 0 },
+  // MATIC/USDC 0.30% — target ~22% APR → vol = 0.22 × 190M / 0.003 / 365 = $38.3M
+  { id: 'pool-matic-usdc', token0: TOKENS[14], token1: TOKENS[2],  tvl:   190_000_000, volume24h:    38_300_000, feeTier: 0.3,  myLiquidity: 0 },
+  // ARB/USDC 1.00%  — target ~28% APR → vol = 0.28 × 84M / 0.01 / 365 = $6.44M
+  { id: 'pool-arb-usdc',   token0: TOKENS[15], token1: TOKENS[2],  tvl:    84_000_000, volume24h:     6_440_000, feeTier: 1.0,  myLiquidity: 0 },
+  // USDC/USDT 0.01% — target ~8% APR  → vol = 0.08 × 450M / 0.0001 / 365 = $986M
+  { id: 'pool-usdc-usdt',  token0: TOKENS[2],  token1: TOKENS[3],  tvl:   450_000_000, volume24h:   986_000_000, feeTier: 0.01, myLiquidity: 3000 },
 ];
 
 export const TRANSACTIONS: Transaction[] = [
