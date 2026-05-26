@@ -30,7 +30,28 @@ export const SWAP_ROUTER_ADDRESS: Record<number, `0x${string}`> = {
   [base.id]:     '0x2626664c2603336E57B271c5C0b26F421741e481',
 };
 
-// ── Fee tiers ─────────────────────────────────────────────────────────────
+// ── Protocol / platform fee ─────────────────────────────────────────────────
+//
+// The platform charges a 0.25 % fee on every swap.
+// Set VITE_TREASURY_ADDRESS in your .env / Vercel env vars to your wallet.
+//
+// Fee collection without a custom on-chain router:
+//   • ETH input → the swap sends (amountIn − fee) to Uniswap; the fee ETH
+//     stays in the user’s wallet (shows as deducted in the UI). Full
+//     on-chain collection requires deploying a simple fee-splitter contract.
+//   • ERC-20 input → fee is deducted from the displayed output (amountOutMin
+//     is tightened by fee bps), and shown in the trade details. To collect
+//     ERC-20 fees atomically, deploy a thin router that calls transferFrom
+//     for the fee before forwarding the rest to Uniswap.
+//
+export const PROTOCOL_FEE_BPS = 25; // 25 bps = 0.25 %
+
+// Your treasury / fee-recipient wallet address
+export const TREASURY_ADDRESS =
+  (import.meta.env.VITE_TREASURY_ADDRESS as string) ||
+  '0x0000000000000000000000000000000000000000'; // ← replace with your address
+
+// ── Pool fee tiers ──────────────────────────────────────────────────────
 
 export const FEE_TIERS = [100, 500, 3000, 10000] as const;
 export type FeeTier = (typeof FEE_TIERS)[number];
