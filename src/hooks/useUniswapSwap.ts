@@ -8,6 +8,7 @@ import { NATIVE_ETH } from '../data/tokens';
 import {
   SWAP_ROUTER_ADDRESS, SWAP_ROUTER_ABI,
   WETH_ADDRESS, ERC20_ABI,
+  PROTOCOL_FEE_BPS,
 } from '../config/uniswap';
 import { toTokenUnits, type UniswapQuote } from './useUniswapQuote';
 
@@ -121,7 +122,10 @@ export function useUniswapSwap({
     setError(null);
 
     const slippageBps  = BigInt(Math.round(slippage * 100));
-    const amountOutMin = (quote.amountOut * (10000n - slippageBps)) / 10000n;
+    const feeBps       = BigInt(PROTOCOL_FEE_BPS);
+    // Tighten amountOutMin by both slippage tolerance AND platform fee
+    const totalBps     = slippageBps + feeBps;
+    const amountOutMin = (quote.amountOut * (10000n - totalBps)) / 10000n;
 
     // Route native ETH through WETH
     const effectiveIn  = isNativeIn  ? weth : tokenIn.address  as `0x${string}`;

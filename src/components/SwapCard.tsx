@@ -10,7 +10,7 @@ import type { Token, GasSpeed } from '../types';
 import TokenSelectorModal from './TokenSelectorModal';
 import { useUniswapQuote } from '../hooks/useUniswapQuote';
 import { useUniswapSwap } from '../hooks/useUniswapSwap';
-import { FEE_LABEL } from '../config/uniswap';
+import { FEE_LABEL, PROTOCOL_FEE_BPS } from '../config/uniswap';
 import { CHAIN_META } from '../config/wagmi';
 
 const GAS_OPTIONS: { speed: GasSpeed; label: string; time: string; gwei: number }[] = [
@@ -34,6 +34,9 @@ export default function SwapCard() {
   const { isConnected } = useAccount();
   const chainId = useChainId();
   const chainMeta = CHAIN_META[chainId];
+
+  // Real on-chain balances from WalletSync → store
+  const tokenBalances = useStore(s => s.tokenBalances);
 
   const [showSettings,      setShowSettings]      = useState(false);
   const [showTokenInModal,  setShowTokenInModal]   = useState(false);
@@ -235,6 +238,7 @@ export default function SwapCard() {
         {/* Token In */}
         <TokenInput
           label="You Pay" token={tokenIn} amount={amountIn}
+          balance={tokenBalances[tokenIn.address]}
           onAmountChange={setAmountIn} onTokenClick={() => setShowTokenInModal(true)} showMax
         />
 
@@ -258,6 +262,7 @@ export default function SwapCard() {
         <div className="relative">
           <TokenInput
             label="You Receive" token={tokenOut} amount={displayAmountOut}
+            balance={tokenBalances[tokenOut.address]}
             onAmountChange={() => {}} onTokenClick={() => setShowTokenOutModal(true)} readOnly
           />
           {quoteLoading && (
@@ -310,6 +315,17 @@ export default function SwapCard() {
             <div className="flex justify-between text-xs">
               <span className="text-white/40">Network Fee</span>
               <span className="text-white/70">{gasFeeUSD}</span>
+            </div>
+            <div className="flex justify-between text-xs">
+              <span className="text-white/40">Platform Fee</span>
+              <span className="font-mono" style={{ color: '#00FF88' }}>
+                {PROTOCOL_FEE_BPS / 100}%
+                {quote && (
+                  <span className="text-white/30 ml-1">
+                    (≈ {((parseFloat(quote.amountOutFormatted) * PROTOCOL_FEE_BPS) / 10000).toFixed(6)} {tokenOut.symbol})
+                  </span>
+                )}
+              </span>
             </div>
             <div className="flex justify-between text-xs">
               <span className="text-white/40">Protocol</span>
@@ -370,21 +386,28 @@ export default function SwapCard() {
 
 interface TokenInputProps {
   label: string; token: Token; amount: string;
+  balance?: number;   // real on-chain balance (overrides token.balance)
   onAmountChange: (v: string) => void; onTokenClick: () => void;
   readOnly?: boolean; showMax?: boolean;
 }
 
-function TokenInput({ label, token, amount, onAmountChange, onTokenClick, readOnly, showMax }: TokenInputProps) {
+function TokenInput({ label, token, amount, balance, onAmountChange, onTokenClick, readOnly, showMax }: TokenInputProps) {
   const { isConnected } = useAccount();
+
+  // Prefer real on-chain balance; fall back to static token.balance
+  const displayBalance = balance ?? token.balance;
 
   return (
     <div className="rounded-xl p-4 transition-all duration-200"
       style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)' }}>
       <div className="flex justify-between items-center mb-2">
         <span className="text-xs text-white/40 font-medium">{label}</span>
-        {isConnected && token.balance !== undefined && (
+        {isConnected && displayBalance !== undefined && (
           <span className="text-xs text-white/30">
-            Balance: <span className="text-white/50">{token.balance.toFixed(4)} {token.symbol}</span>
+            Balance:{' '}
+            <span className="text-white/50">
+              {displayBalance.toFixed(displayBalance < 0.001 ? 8 : 4)} {token.symbol}
+            </span>
           </span>
         )}
       </div>
@@ -395,9 +418,9 @@ function TokenInput({ label, token, amount, onAmountChange, onTokenClick, readOn
           readOnly={readOnly} className="token-input flex-1" min="0"
         />
         <div className="flex items-center gap-2">
-          {showMax && isConnected && token.balance !== undefined && (
+          {showMax && isConnected && displayBalance !== undefined && (
             <button
-              onClick={() => onAmountChange(((token.balance ?? 0) * 0.95).toFixed(6))}
+              onClick={() => onAmountChange((displayBalance * 0.95).toFixed(6))}
               className="text-xs px-2 py-1 rounded-lg font-semibold transition-colors"
               style={{ background: 'rgba(252,114,255,0.15)', color: '#FC72FF' }}
             >MAX</button>
@@ -415,7 +438,7 @@ function TokenInput({ label, token, amount, onAmountChange, onTokenClick, readOn
           </motion.button>
         </div>
       </div>
-      {amount && (
+      {amount && parseFloat(amount) > 0 && (
         <p className="text-xs text-white/30 mt-1.5">
           ≈ ${(parseFloat(amount) * token.price).toLocaleString('en-US', { maximumFractionDigits: 2 })}
         </p>

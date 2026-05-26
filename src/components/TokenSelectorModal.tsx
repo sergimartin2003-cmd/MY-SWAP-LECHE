@@ -3,6 +3,7 @@ import { Search, X, TrendingUp, TrendingDown, CheckCircle } from 'lucide-react';
 import { useState } from 'react';
 import type { Token } from '../types';
 import { TOKENS } from '../data/tokens';
+import { useStore } from '../store/useStore';
 
 interface Props {
   isOpen: boolean;
@@ -15,6 +16,10 @@ const RECENTLY_USED = [TOKENS[0], TOKENS[2], TOKENS[1], TOKENS[4]];
 
 export default function TokenSelectorModal({ isOpen, onClose, onSelect, excludeToken }: Props) {
   const [search, setSearch] = useState('');
+  const { tokenBalances, walletConnected } = useStore(s => ({
+    tokenBalances: s.tokenBalances,
+    walletConnected: s.walletConnected,
+  }));
 
   const filtered = TOKENS.filter(t =>
     t !== excludeToken &&
@@ -133,12 +138,20 @@ export default function TokenSelectorModal({ isOpen, onClose, onSelect, excludeT
                         {token.change24h >= 0 ? '+' : ''}{token.change24h.toFixed(2)}%
                       </p>
                     </div>
-                    {token.balance !== undefined && token.balance > 0 && (
-                      <div className="text-right ml-2">
-                        <p className="text-xs text-white/30">Balance</p>
-                        <p className="text-xs font-mono text-white/60">{token.balance.toFixed(4)}</p>
-                      </div>
-                    )}
+                    {/* Show real on-chain balance when connected */}
+                    {(() => {
+                      const bal = walletConnected
+                        ? (tokenBalances[token.address] ?? token.balance)
+                        : token.balance;
+                      return bal !== undefined && bal > 0 ? (
+                        <div className="text-right ml-2">
+                          <p className="text-xs text-white/30">Balance</p>
+                          <p className="text-xs font-mono text-white/60">
+                            {bal.toFixed(bal < 0.001 ? 8 : 4)}
+                          </p>
+                        </div>
+                      ) : null;
+                    })()}
                   </motion.button>
                 ))}
               </div>

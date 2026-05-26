@@ -9,12 +9,16 @@ interface Notification {
   message: string;
 }
 
+import type { TokenBalanceMap } from '../hooks/useTokenBalances';
+
 interface AppState {
   // Wallet (synced from wagmi via WalletSync component)
   walletConnected: boolean;
   walletAddress: string;
   walletBalance: number;
+  tokenBalances: TokenBalanceMap;   // real on-chain balances per token address
   setWalletState: (connected: boolean, address: string, balance?: number) => void;
+  setTokenBalances: (balances: TokenBalanceMap) => void;
 
   // Wallet panel
   showWalletPanel: boolean;
@@ -57,8 +61,10 @@ export const useStore = create<AppState>((set, get) => ({
   walletConnected: false,
   walletAddress: '',
   walletBalance: 0,
+  tokenBalances: {},
   setWalletState: (connected, address, balance = 0) =>
     set({ walletConnected: connected, walletAddress: address, walletBalance: balance }),
+  setTokenBalances: (balances) => set({ tokenBalances: balances }),
 
   // Wallet panel
   showWalletPanel: false,
