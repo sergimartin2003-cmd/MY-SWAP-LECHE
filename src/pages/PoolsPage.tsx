@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { Droplets, Plus, TrendingUp, Info } from 'lucide-react';
+import { Droplets, Plus, TrendingUp, Info, ExternalLink } from 'lucide-react';
 import { POOLS } from '../data/tokens';
 import { useState } from 'react';
 import type { Pool } from '../types';
@@ -23,19 +23,64 @@ export default function PoolsPage() {
           <div className="flex items-center gap-2">
             <Droplets size={22} className="text-neon-blue" />
             <h1 className="text-2xl font-black text-white">Liquidity Pools</h1>
+            {/* Uniswap v3 badge */}
+            <span className="text-xs px-2 py-0.5 rounded-full font-semibold"
+              style={{ background: 'rgba(252,114,255,0.15)', color: '#FC72FF', border: '1px solid rgba(252,114,255,0.3)' }}>
+              🦄 Uniswap v3
+            </span>
           </div>
-          <motion.button
-            whileHover={{ scale: 1.04, boxShadow: '0 0 25px rgba(123,47,255,0.4)' }}
-            whileTap={{ scale: 0.96 }}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold text-white"
-            style={{ background: 'linear-gradient(135deg, #7B2FFF, #00D4FF)' }}
-          >
-            <Plus size={15} /> New Position
-          </motion.button>
+          <div className="flex items-center gap-2">
+            <a
+              href="https://app.uniswap.org/pools"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold text-white/60 hover:text-white transition-colors"
+              style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)' }}
+            >
+              <ExternalLink size={12} /> Uniswap App
+            </a>
+            <motion.button
+              whileHover={{ scale: 1.04, boxShadow: '0 0 25px rgba(252,114,255,0.4)' }}
+              whileTap={{ scale: 0.96 }}
+              onClick={() => window.open('https://app.uniswap.org/pools', '_blank')}
+              className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold text-white"
+              style={{ background: 'linear-gradient(135deg, #FC72FF, #7B2FFF)' }}
+            >
+              <Plus size={15} /> New Position
+            </motion.button>
+          </div>
         </div>
-        <p className="text-sm text-white/40">Provide liquidity and earn fees + rewards</p>
+        <p className="text-sm text-white/40">Provide liquidity on Uniswap v3 and earn fees proportional to your share</p>
       </motion.div>
 
+      {/* Uniswap v3 info banner */}
+      <motion.div
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.1 }}
+        className="mb-5 flex items-start gap-3 p-4 rounded-xl"
+        style={{ background: 'rgba(252,114,255,0.06)', border: '1px solid rgba(252,114,255,0.2)' }}
+      >
+        <span className="text-xl">🦄</span>
+        <div className="flex-1">
+          <p className="text-sm font-semibold text-white mb-0.5">Powered by Uniswap v3</p>
+          <p className="text-xs text-white/40">
+            Concentrated liquidity positions with fee tiers of 0.01%, 0.05%, 0.30%, and 1.00%.
+            Swaps on this platform route through Uniswap v3 pools on Ethereum, Polygon, Arbitrum, Optimism, and Base.
+          </p>
+        </div>
+        <a
+          href="https://docs.uniswap.org/concepts/protocol/concentrated-liquidity"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-xs font-semibold flex items-center gap-1 whitespace-nowrap hover:opacity-80"
+          style={{ color: '#FC72FF' }}
+        >
+          Learn more <ExternalLink size={10} />
+        </a>
+      </motion.div>
+
+      {/* Stats */}
       <div className="grid grid-cols-3 gap-4 mb-6">
         {[
           { label: 'Total TVL', value: '$4.2B', color: '#7B2FFF' },
@@ -55,6 +100,7 @@ export default function PoolsPage() {
         ))}
       </div>
 
+      {/* My positions */}
       <div className="mb-6">
         <h2 className="text-sm font-semibold text-white/50 mb-3 uppercase tracking-wider">My Positions</h2>
         <div className="space-y-2">
@@ -92,6 +138,7 @@ export default function PoolsPage() {
         </div>
       </div>
 
+      {/* All pools */}
       <div>
         <h2 className="text-sm font-semibold text-white/50 mb-3 uppercase tracking-wider">All Pools</h2>
         <div className="glass-card overflow-hidden">
@@ -138,6 +185,7 @@ export default function PoolsPage() {
         </div>
       </div>
 
+      {/* Pool detail */}
       {selectedPool && (
         <motion.div
           initial={{ opacity: 0, y: 20 }}

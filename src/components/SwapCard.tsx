@@ -1,15 +1,17 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   ArrowDownUp, Settings, ChevronDown, AlertTriangle, Info,
-  Loader2, CheckCircle, ExternalLink, Zap,
+  Loader2, CheckCircle, ExternalLink,
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { useAccount, useChainId } from 'wagmi';
 import { useStore } from '../store/useStore';
 import type { Token, GasSpeed } from '../types';
 import TokenSelectorModal from './TokenSelectorModal';
-import { useParaSwapQuote } from '../hooks/useParaSwapQuote';
-import { useSwapExecution } from '../hooks/useSwapExecution';
+import { useUniswapQuote } from '../hooks/useUniswapQuote';
+import { useUniswapSwap } from '../hooks/useUniswapSwap';
+import { FEE_LABEL } from '../config/uniswap';
+import { CHAIN_META } from '../config/wagmi';
 
 const GAS_OPTIONS: { speed: GasSpeed; label: string; time: string; gwei: number }[] = [
   { speed: 'slow',     label: 'Slow',     time: '~5 min', gwei: 18 },
@@ -31,6 +33,7 @@ export default function SwapCard() {
 
   const { isConnected } = useAccount();
   const chainId = useChainId();
+  const chainMeta = CHAIN_META[chainId];
 
   const [showSettings,      setShowSettings]      = useState(false);
   const [showTokenInModal,  setShowTokenInModal]   = useState(false);
@@ -38,20 +41,18 @@ export default function SwapCard() {
   const [customSlippage,    setCustomSlippage]     = useState('');
   const [isFlipping,        setIsFlipping]         = useState(false);
 
-  /* ── ParaSwap quote ─────────────────────────────────────────── */
-  const { quote, loading: quoteLoading, error: quoteError } = useParaSwapQuote(
+  /* ── Uniswap v3 quote ─────────────────────────────────────────────── */
+  const { quote, loading: quoteLoading, error: quoteError } = useUniswapQuote(
     tokenIn, tokenOut, amountIn, chainId,
   );
 
-  // Keep amountOut in sync with real quote
   useEffect(() => {
-    if (quote) setAmountOut(quote.destAmountFormatted);
+    if (quote) setAmountOut(quote.amountOutFormatted);
   }, [quote, setAmountOut]);
 
-  // Fallback: if ParaSwap quote unavailable, use local calc
-  const displayAmountOut = quote ? quote.destAmountFormatted : amountOut;
+  const displayAmountOut = quote ? quote.amountOutFormatted : amountOut;
 
-  /* ── Swap execution ─────────────────────────────────────────── */
+  /* ── Uniswap v3 swap execution ────────────────────────────────────────── */
   const {
     status: swapStatus,
     needsApproval,
@@ -61,9 +62,8 @@ export default function SwapCard() {
     approve,
     executeSwap,
     reset: resetSwap,
-  } = useSwapExecution({ tokenIn, tokenOut, amountIn, slippage, quote, chainId });
+  } = useUniswapSwap({ tokenIn, tokenOut, amountIn, slippage, quote, chainId });
 
-  // Notify on success / error
   useEffect(() => {
     if (swapStatus === 'success') {
       addNotification({
@@ -80,7 +80,7 @@ export default function SwapCard() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [swapStatus]);
 
-  /* ── Helpers ────────────────────────────────────────────────── */
+  /* ── Helpers ────────────────────────────────────────────────────────── */
   const handleFlip = () => {
     setIsFlipping(true);
     setTimeout(() => { flipTokens(); setIsFlipping(false); }, 300);
@@ -89,7 +89,6 @@ export default function SwapCard() {
   const handleSwap = () => {
     if (!isConnected) { setShowWalletPanel(true); return; }
     if (!amountIn || !displayAmountOut) return;
-    // On error: reset first so user starts fresh on next click
     if (swapStatus === 'error') { resetSwap(); return; }
     if (needsApproval) { approve(); return; }
     executeSwap();
@@ -97,13 +96,25 @@ export default function SwapCard() {
 
   const impactColor = priceImpact < 1 ? '#00FF88' : priceImpact < 5 ? '#FFB800' : '#FF2D78';
   const impactBg    = priceImpact < 1 ? 'rgba(0,255,136,0.1)' : priceImpact < 5 ? 'rgba(255,184,0,0.1)' : 'rgba(255,45,120,0.1)';
-  // Use real quote rate when available, fall back to price-based estimate
+
   const exchangeRate = quote && amountIn && parseFloat(amountIn) > 0
-    ? parseFloat(quote.destAmountFormatted) / parseFloat(amountIn)
+    ? parseFloat(quote.amountOutFormatted) / parseFloat(amountIn)
     : tokenIn.price / tokenOut.price;
-  const gasFeeUSD = quote?.gasCostUSD
-    ? `$${parseFloat(quote.gasCostUSD).toFixed(2)}`
+
+  const gasFeeUSD = quote
+    ? `~$${((Number(quote.gasEstimate) * 30e-9) * 3842).toFixed(2)}`
     : `$${(GAS_OPTIONS.find(g => g.speed === gasSpeed)!.gwei * 21000 * 1e-9 * 3842).toFixed(2)}`;
+
+  const explorerBase = () => {
+    const bases: Record<number, string> = {
+      1:     'https://etherscan.io/tx/',
+      137:   'https://polygonscan.com/tx/',
+      42161: 'https://arbiscan.io/tx/',
+      10:    'https://optimistic.etherscan.io/tx/',
+      8453:  'https://basescan.org/tx/',
+    };
+    return bases[chainId] ?? 'https://etherscan.io/tx/';
+  };
 
   const swapButtonLabel = () => {
     if (!isConnected)               return '🔗 Connect Wallet';
@@ -114,7 +125,8 @@ export default function SwapCard() {
     if (swapStatus === 'error')     return 'Try Again';
     if (execLoading)                return 'Processing…';
     if (!amountIn)                  return 'Enter Amount';
-    if (quoteLoading)               return 'Fetching Quote…';
+    if (quoteLoading)               return 'Getting Quote…';
+    if (!quote && amountIn)         return 'No liquidity';
     if (needsApproval)              return `Approve ${tokenIn.symbol}`;
     if (priceImpact > 15)           return '⚠️ High Impact — Swap Anyway';
     return `Swap ${tokenIn.symbol} → ${tokenOut.symbol}`;
@@ -124,6 +136,7 @@ export default function SwapCard() {
     swapStatus === 'success' ||
     (execLoading && swapStatus !== 'error') ||
     (isConnected && (!amountIn || !displayAmountOut)) ||
+    (isConnected && !quote && !!amountIn && !quoteLoading) ||
     quoteLoading;
 
   return (
@@ -145,8 +158,7 @@ export default function SwapCard() {
               </p>
               <div className="flex gap-2">
                 {SLIPPAGE_OPTIONS.map(s => (
-                  <button
-                    key={s}
+                  <button key={s}
                     onClick={() => { setSlippage(s); setCustomSlippage(''); }}
                     className="px-3 py-1.5 rounded-lg text-xs font-medium transition-all"
                     style={{
@@ -157,9 +169,7 @@ export default function SwapCard() {
                   >{s}%</button>
                 ))}
                 <input
-                  type="number"
-                  placeholder="Custom"
-                  value={customSlippage}
+                  type="number" placeholder="Custom" value={customSlippage}
                   onChange={e => { setCustomSlippage(e.target.value); setSlippage(parseFloat(e.target.value) || 0.5); }}
                   className="w-20 px-2 py-1.5 rounded-lg text-xs font-medium outline-none text-white placeholder-white/30"
                   style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)' }}
@@ -170,13 +180,11 @@ export default function SwapCard() {
               <p className="text-xs text-white/40 mb-2">Gas Speed</p>
               <div className="grid grid-cols-4 gap-1.5">
                 {GAS_OPTIONS.map(opt => (
-                  <button
-                    key={opt.speed}
-                    onClick={() => setGasSpeed(opt.speed)}
+                  <button key={opt.speed} onClick={() => setGasSpeed(opt.speed)}
                     className="p-2 rounded-lg text-center transition-all"
                     style={{
                       background: gasSpeed === opt.speed ? 'rgba(0,212,255,0.15)' : 'rgba(255,255,255,0.04)',
-                      border:     gasSpeed === opt.speed ? '1px solid rgba(0,212,255,0.4)'  : '1px solid rgba(255,255,255,0.06)',
+                      border:     gasSpeed === opt.speed ? '1px solid rgba(0,212,255,0.4)' : '1px solid rgba(255,255,255,0.06)',
                     }}
                   >
                     <p className="text-xs font-semibold text-white">{opt.label}</p>
@@ -193,17 +201,25 @@ export default function SwapCard() {
       <div className="glass-card p-5" style={{ border: '1px solid rgba(123,47,255,0.2)' }}>
         {/* Header */}
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-bold text-white">Swap</h2>
           <div className="flex items-center gap-2">
+            <h2 className="text-lg font-bold text-white">Swap</h2>
+            {chainMeta && (
+              <span className="text-xs px-2 py-0.5 rounded-full font-medium"
+                style={{ background: `${chainMeta.color}20`, color: chainMeta.color, border: `1px solid ${chainMeta.color}40` }}>
+                {chainMeta.icon} {chainMeta.name}
+              </span>
+            )}
+          </div>
+          <div className="flex items-center gap-2">
+            {/* Uniswap v3 route badge */}
             {quote && (
               <div className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs"
-                style={{ background: 'rgba(0,212,255,0.1)', color: '#00D4FF' }}>
-                <Zap size={10} /> ParaSwap
+                style={{ background: 'rgba(252,114,255,0.12)', color: '#FC72FF', border: '1px solid rgba(252,114,255,0.25)' }}>
+                🦄 Uniswap v3 · {FEE_LABEL[quote.feeTier]}
               </div>
             )}
             <motion.button
-              whileHover={{ scale: 1.1, rotate: 30 }}
-              whileTap={{ scale: 0.9 }}
+              whileHover={{ scale: 1.1, rotate: 30 }} whileTap={{ scale: 0.9 }}
               onClick={() => setShowSettings(!showSettings)}
               className="p-2 rounded-xl transition-colors"
               style={{
@@ -218,19 +234,14 @@ export default function SwapCard() {
 
         {/* Token In */}
         <TokenInput
-          label="You Pay"
-          token={tokenIn}
-          amount={amountIn}
-          onAmountChange={setAmountIn}
-          onTokenClick={() => setShowTokenInModal(true)}
-          showMax
+          label="You Pay" token={tokenIn} amount={amountIn}
+          onAmountChange={setAmountIn} onTokenClick={() => setShowTokenInModal(true)} showMax
         />
 
-        {/* Flip button */}
+        {/* Flip */}
         <div className="flex justify-center my-2 relative z-10">
           <motion.button
-            whileHover={{ scale: 1.1 }}
-            whileTap={{ scale: 0.9, rotate: 180 }}
+            whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9, rotate: 180 }}
             animate={{ rotate: isFlipping ? 180 : 0 }}
             onClick={handleFlip}
             className="p-2.5 rounded-xl"
@@ -246,31 +257,27 @@ export default function SwapCard() {
         {/* Token Out */}
         <div className="relative">
           <TokenInput
-            label="You Receive"
-            token={tokenOut}
-            amount={displayAmountOut}
-            onAmountChange={() => {}}
-            onTokenClick={() => setShowTokenOutModal(true)}
-            readOnly
+            label="You Receive" token={tokenOut} amount={displayAmountOut}
+            onAmountChange={() => {}} onTokenClick={() => setShowTokenOutModal(true)} readOnly
           />
           {quoteLoading && (
             <div className="absolute right-4 top-1/2 -translate-y-1/2">
-              <Loader2 size={16} className="text-neon-blue animate-spin" />
+              <Loader2 size={16} className="animate-spin" style={{ color: '#FC72FF' }} />
             </div>
           )}
         </div>
 
-        {quoteError && (
-          <p className="text-xs text-yellow-400/80 mt-1 ml-1">
-            ⚠ Live quote unavailable — showing estimate
+        {/* Quote error / no liquidity */}
+        {quoteError && amountIn && (
+          <p className="text-xs text-yellow-400/80 mt-1 ml-1 flex items-center gap-1">
+            <AlertTriangle size={11} /> {quoteError.includes('No liquidity') ? quoteError : 'Live quote unavailable'}
           </p>
         )}
 
         {/* Rate & Details */}
         {amountIn && displayAmountOut && (
           <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
+            initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }}
             className="mt-3 rounded-xl p-3 space-y-2"
             style={{ background: 'rgba(255,255,255,0.03)' }}
           >
@@ -280,6 +287,12 @@ export default function SwapCard() {
                 1 {tokenIn.symbol} ≈ {exchangeRate.toFixed(6)} {tokenOut.symbol}
               </span>
             </div>
+            {quote && (
+              <div className="flex justify-between text-xs">
+                <span className="text-white/40">Pool fee tier</span>
+                <span className="font-mono" style={{ color: '#FC72FF' }}>{FEE_LABEL[quote.feeTier]}</span>
+              </div>
+            )}
             {!quote && (
               <div className="flex justify-between text-xs">
                 <span className="text-white/40">Price Impact</span>
@@ -295,31 +308,25 @@ export default function SwapCard() {
               <span className="text-white/70">{slippage}%</span>
             </div>
             <div className="flex justify-between text-xs">
-              <span className="text-white/40">Route</span>
-              <span className="text-white/70 flex items-center gap-1">
-                <span className="font-mono">{tokenIn.symbol}</span>
-                <span className="text-white/20">→</span>
-                <span className="font-mono">{tokenOut.symbol}</span>
-              </span>
-            </div>
-            <div className="flex justify-between text-xs">
               <span className="text-white/40">Network Fee</span>
               <span className="text-white/70">{gasFeeUSD}</span>
+            </div>
+            <div className="flex justify-between text-xs">
+              <span className="text-white/40">Protocol</span>
+              <span style={{ color: '#FC72FF' }}>🦄 Uniswap v3</span>
             </div>
           </motion.div>
         )}
 
         {/* Approval banner */}
         {isConnected && needsApproval && amountIn && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}
             className="mt-3 flex items-start gap-2.5 p-3 rounded-xl text-xs"
             style={{ background: 'rgba(255,184,0,0.08)', border: '1px solid rgba(255,184,0,0.2)', color: '#FFB800' }}
           >
             <Info size={13} className="mt-0.5 flex-shrink-0" />
             <span>
-              You need to approve <strong>{tokenIn.symbol}</strong> before swapping.
+              Approve <strong>{tokenIn.symbol}</strong> to Uniswap v3 Router.
               This is a one-time transaction per token.
             </span>
           </motion.div>
@@ -327,26 +334,28 @@ export default function SwapCard() {
 
         {/* Swap button */}
         <motion.button
-          whileHover={swapButtonDisabled ? {} : { scale: 1.02, boxShadow: '0 0 40px rgba(123,47,255,0.4)' }}
+          whileHover={swapButtonDisabled ? {} : { scale: 1.02, boxShadow: '0 0 40px rgba(252,114,255,0.35)' }}
           whileTap={swapButtonDisabled ? {} : { scale: 0.98 }}
           onClick={handleSwap}
           disabled={swapButtonDisabled}
           className="btn-primary mt-4 text-base flex items-center justify-center gap-2"
-          style={swapStatus === 'success' ? { background: 'linear-gradient(135deg, #00FF88, #00D4FF)' } : {}}
+          style={
+            swapStatus === 'success'
+              ? { background: 'linear-gradient(135deg, #00FF88, #00D4FF)' }
+              : { background: 'linear-gradient(135deg, #FC72FF, #7B2FFF)' }
+          }
         >
           {execLoading && <Loader2 size={16} className="animate-spin" />}
           {swapStatus === 'success' && <CheckCircle size={16} />}
           {swapButtonLabel()}
         </motion.button>
 
+        {/* Tx link */}
         {swapHash && (
-          <a
-            href={`https://etherscan.io/tx/${swapHash}`}
-            target="_blank"
-            rel="noopener noreferrer"
+          <a href={`${explorerBase()}${swapHash}`} target="_blank" rel="noopener noreferrer"
             className="flex items-center justify-center gap-1.5 mt-2 text-xs text-white/30 hover:text-white/60 transition-colors"
           >
-            <ExternalLink size={11} /> View on Etherscan
+            <ExternalLink size={11} /> View on explorer
           </a>
         )}
       </div>
@@ -357,26 +366,20 @@ export default function SwapCard() {
   );
 }
 
-/* ── TokenInput sub-component ──────────────────────────────────── */
+/* ── TokenInput ───────────────────────────────────────────────────────────────────── */
 
 interface TokenInputProps {
-  label: string;
-  token: Token;
-  amount: string;
-  onAmountChange: (v: string) => void;
-  onTokenClick: () => void;
-  readOnly?: boolean;
-  showMax?: boolean;
+  label: string; token: Token; amount: string;
+  onAmountChange: (v: string) => void; onTokenClick: () => void;
+  readOnly?: boolean; showMax?: boolean;
 }
 
 function TokenInput({ label, token, amount, onAmountChange, onTokenClick, readOnly, showMax }: TokenInputProps) {
   const { isConnected } = useAccount();
 
   return (
-    <div
-      className="rounded-xl p-4 transition-all duration-200"
-      style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)' }}
-    >
+    <div className="rounded-xl p-4 transition-all duration-200"
+      style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)' }}>
       <div className="flex justify-between items-center mb-2">
         <span className="text-xs text-white/40 font-medium">{label}</span>
         {isConnected && token.balance !== undefined && (
@@ -387,37 +390,26 @@ function TokenInput({ label, token, amount, onAmountChange, onTokenClick, readOn
       </div>
       <div className="flex items-center gap-3">
         <input
-          type="number"
-          placeholder="0.0"
-          value={amount}
+          type="number" placeholder="0.0" value={amount}
           onChange={e => onAmountChange(e.target.value)}
-          readOnly={readOnly}
-          className="token-input flex-1"
-          min="0"
+          readOnly={readOnly} className="token-input flex-1" min="0"
         />
         <div className="flex items-center gap-2">
           {showMax && isConnected && token.balance !== undefined && (
             <button
               onClick={() => onAmountChange(((token.balance ?? 0) * 0.95).toFixed(6))}
               className="text-xs px-2 py-1 rounded-lg font-semibold transition-colors"
-              style={{ background: 'rgba(0,212,255,0.15)', color: '#00D4FF' }}
-            >
-              MAX
-            </button>
+              style={{ background: 'rgba(252,114,255,0.15)', color: '#FC72FF' }}
+            >MAX</button>
           )}
           <motion.button
-            whileHover={{ scale: 1.04 }}
-            whileTap={{ scale: 0.96 }}
+            whileHover={{ scale: 1.04 }} whileTap={{ scale: 0.96 }}
             onClick={onTokenClick}
             className="flex items-center gap-2 px-3 py-2 rounded-xl font-semibold text-sm text-white"
             style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.1)', minWidth: '100px' }}
           >
-            <img
-              src={token.logoUrl}
-              alt={token.symbol}
-              className="w-5 h-5 rounded-full"
-              onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }}
-            />
+            <img src={token.logoUrl} alt={token.symbol} className="w-5 h-5 rounded-full"
+              onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }} />
             <span>{token.symbol}</span>
             <ChevronDown size={14} className="text-white/50" />
           </motion.button>
