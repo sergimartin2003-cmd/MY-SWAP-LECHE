@@ -84,10 +84,15 @@ export function useParaSwapQuote(
       });
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Quote failed';
-      // Network / CORS errors are common in dev — swallow silently
-      if (!msg.includes('Failed to fetch') && !msg.includes('abort')) {
-        setError(msg);
-      }
+      // Swallow expected non-errors: network issues, CORS in dev, timeouts, user aborts
+      const isSilent =
+        msg.includes('Failed to fetch') ||
+        msg.includes('abort') ||
+        msg.includes('timed out') ||
+        msg.includes('Load failed') ||    // Safari network error
+        msg.includes('NetworkError') ||
+        msg === 'signal timed out';
+      if (!isSilent) setError(msg);
       setQuote(null);
     } finally {
       setLoading(false);

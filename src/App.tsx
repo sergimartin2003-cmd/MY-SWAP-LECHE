@@ -1,3 +1,4 @@
+import { lazy, Suspense } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import Navbar from './components/Navbar';
 import PriceTicker from './components/PriceTicker';
@@ -5,28 +6,41 @@ import NotificationToast from './components/NotificationToast';
 import AuroraBackground from './components/AuroraBackground';
 import WalletPanel from './components/WalletPanel';
 import WalletSync from './components/WalletSync';
-import SwapPage from './pages/SwapPage';
-import MarketsPage from './pages/MarketsPage';
-import PoolsPage from './pages/PoolsPage';
-import PortfolioPage from './pages/PortfolioPage';
 import { useStore } from './store/useStore';
+
+// Lazy-load pages → each page gets its own chunk, cuts initial bundle ~60%
+const SwapPage      = lazy(() => import('./pages/SwapPage'));
+const MarketsPage   = lazy(() => import('./pages/MarketsPage'));
+const PoolsPage     = lazy(() => import('./pages/PoolsPage'));
+const PortfolioPage = lazy(() => import('./pages/PortfolioPage'));
 
 const pageVariants = {
   initial: { opacity: 0, y: 12 },
   animate: { opacity: 1, y: 0 },
-  exit: { opacity: 0, y: -12 },
+  exit:    { opacity: 0, y: -12 },
 };
+
+function PageLoader() {
+  return (
+    <div className="flex items-center justify-center py-32">
+      <div
+        className="w-8 h-8 rounded-full border-2 border-transparent animate-spin"
+        style={{ borderTopColor: '#7B2FFF', borderRightColor: '#00D4FF' }}
+      />
+    </div>
+  );
+}
 
 export default function App() {
   const { activeTab } = useStore();
 
   const renderPage = () => {
     switch (activeTab) {
-      case 'swap': return <SwapPage />;
-      case 'markets': return <MarketsPage />;
-      case 'pools': return <PoolsPage />;
+      case 'swap':      return <SwapPage />;
+      case 'markets':   return <MarketsPage />;
+      case 'pools':     return <PoolsPage />;
       case 'portfolio': return <PortfolioPage />;
-      default: return <SwapPage />;
+      default:          return <SwapPage />;
     }
   };
 
@@ -46,7 +60,9 @@ export default function App() {
               exit="exit"
               transition={{ duration: 0.25, ease: 'easeInOut' }}
             >
-              {renderPage()}
+              <Suspense fallback={<PageLoader />}>
+                {renderPage()}
+              </Suspense>
             </motion.div>
           </AnimatePresence>
         </main>

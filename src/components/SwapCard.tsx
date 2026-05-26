@@ -92,13 +92,18 @@ export default function SwapCard() {
   const handleSwap = () => {
     if (!isConnected) { setShowWalletPanel(true); return; }
     if (!amountIn || !displayAmountOut) return;
+    // On error state: reset so the user can try again cleanly
+    if (swapStatus === 'error') { resetSwap(); return; }
     if (needsApproval) { approve(); return; }
     executeSwap();
   };
 
   const impactColor = priceImpact < 1 ? '#00FF88' : priceImpact < 5 ? '#FFB800' : '#FF2D78';
   const impactBg    = priceImpact < 1 ? 'rgba(0,255,136,0.1)' : priceImpact < 5 ? 'rgba(255,184,0,0.1)' : 'rgba(255,45,120,0.1)';
-  const exchangeRate = tokenIn.price / tokenOut.price;
+  // Use real quote rate when available, fall back to price-based estimate
+  const exchangeRate = quote && amountIn && parseFloat(amountIn) > 0
+    ? parseFloat(quote.destAmountFormatted) / parseFloat(amountIn)
+    : tokenIn.price / tokenOut.price;
   const gasFeeUSD = quote?.gasCostUSD
     ? `$${parseFloat(quote.gasCostUSD).toFixed(2)}`
     : `$${(GAS_OPTIONS.find(g => g.speed === gasSpeed)!.gwei * 21000 * 1e-9 * 3842).toFixed(2)}`;

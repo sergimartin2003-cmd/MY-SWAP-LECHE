@@ -1,7 +1,10 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
-// https://vite.dev/config/
 export default defineConfig({
   plugins: [react()],
+  build: {
+    // Pages are already lazy-loaded → separate chunks per route
+    chunkSizeWarningLimit: 800,
+  },
 })
