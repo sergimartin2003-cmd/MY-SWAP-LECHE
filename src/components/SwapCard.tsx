@@ -65,6 +65,7 @@ export default function SwapCard() {
     approve,
     executeSwap,
     reset: resetSwap,
+    usingOwnRouter,
   } = useUniswapSwap({ tokenIn, tokenOut, amountIn, slippage, quote, chainId });
 
   useEffect(() => {
@@ -345,13 +346,17 @@ export default function SwapCard() {
             </div>
             <div className="flex justify-between text-xs">
               <span className="text-white/40">Platform Fee</span>
-              <span className="font-mono" style={{ color: '#00FF88' }}>
+              <span className="font-mono flex items-center gap-1.5" style={{ color: '#00FF88' }}>
                 {PROTOCOL_FEE_BPS / 100}%
                 {quote && (
-                  <span className="text-white/30 ml-1">
+                  <span className="text-white/30">
                     (≈ {((parseFloat(quote.amountOutFormatted) * PROTOCOL_FEE_BPS) / 10000).toFixed(6)} {tokenOut.symbol})
                   </span>
                 )}
+                {usingOwnRouter
+                  ? <span className="text-xs px-1.5 py-0.5 rounded-full font-bold" style={{ background: 'rgba(0,255,136,0.15)', color: '#00FF88', fontSize: '9px' }}>ON-CHAIN ✓</span>
+                  : <span className="text-xs px-1.5 py-0.5 rounded-full font-bold" style={{ background: 'rgba(255,184,0,0.12)', color: '#FFB800', fontSize: '9px' }}>UI ONLY</span>
+                }
               </span>
             </div>
             <div className="flex justify-between text-xs">

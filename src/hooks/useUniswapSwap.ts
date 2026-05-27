@@ -6,14 +6,17 @@ import { encodeFunctionData } from 'viem';
 import type { Token } from '../types';
 import { NATIVE_ETH } from '../data/tokens';
 import {
-  SWAP_ROUTER_ADDRESS, SWAP_ROUTER_ABI,
-  WETH_ADDRESS, ERC20_ABI,
+  SWAP_ROUTER_ADDRESS,    SWAP_ROUTER_ABI,
+  NEXSWAP_ROUTER_ADDRESS, NEXSWAP_ROUTER_ABI,
+  WETH_ADDRESS,           ERC20_ABI,
   PROTOCOL_FEE_BPS,
 } from '../config/uniswap';
 import { toTokenUnits, type UniswapQuote } from './useUniswapQuote';
 
-// SwapRouter02 multicall — wraps exactInputSingle with a deadline, preventing
-// sandwich-attack replays that might execute the swap after prices have moved.
+// ── Deadline ──────────────────────────────────────────────────────────────
+const DEADLINE_SECONDS = 300; // 5 minutes
+
+// SwapRouter02 multicall ABI — used in direct/fallback mode only
 const MULTICALL_ABI = [
   {
     name: 'multicall',
@@ -27,9 +30,6 @@ const MULTICALL_ABI = [
   },
 ] as const;
 
-// Deadline: 5 minutes from now (standard practice)
-const DEADLINE_SECONDS = 300;
-
 export type SwapStatus =
   | 'idle'
   | 'approving'
@@ -42,7 +42,7 @@ interface Params {
   tokenIn:  Token;
   tokenOut: Token;
   amountIn: string;
-  slippage: number; // e.g. 0.5 for 0.5%
+  slippage: number;
   quote:    UniswapQuote | null;
   chainId?: number;
 }
@@ -55,12 +55,17 @@ export function useUniswapSwap({
   const [status,   setStatus] = useState<SwapStatus>('idle');
   const [errorMsg, setError]  = useState<string | null>(null);
 
-  const routerAddress = SWAP_ROUTER_ADDRESS[chainId];
-  const weth          = WETH_ADDRESS[chainId];
-  const isNativeIn    = tokenIn.address  === NATIVE_ETH;
-  const isNativeOut   = tokenOut.address === NATIVE_ETH;
+  // Prefer NexSwapRouter when deployed on this chain; fall back to Uniswap directly
+  const nexswapRouter = NEXSWAP_ROUTER_ADDRESS[chainId];
+  const uniswapRouter = SWAP_ROUTER_ADDRESS[chainId];
+  const useOwnRouter  = !!nexswapRouter;
+  const routerAddress = (nexswapRouter ?? uniswapRouter) as `0x${string}` | undefined;
 
-  /* ── Approval ──────────────────────────────────────────────────── */
+  const weth        = WETH_ADDRESS[chainId];
+  const isNativeIn  = tokenIn.address  === NATIVE_ETH;
+  const isNativeOut = tokenOut.address === NATIVE_ETH;
+
+  /* ── Approval ──────────────────────────────────────────────────────── */
   const {
     writeContract: doApprove,
     data:          approvalHash,
@@ -72,7 +77,7 @@ export function useUniswapSwap({
   const { isLoading: isApprovalConfirming, isSuccess: isApprovalConfirmed } =
     useWaitForTransactionReceipt({ hash: approvalHash });
 
-  /* ── Swap ──────────────────────────────────────────────────────── */
+  /* ── Swap ──────────────────────────────────────────────────────────── */
   const {
     writeContract: doSwap,
     data:          swapHash,
@@ -84,7 +89,7 @@ export function useUniswapSwap({
   const { isLoading: isSwapConfirming, isSuccess: isSwapConfirmed } =
     useWaitForTransactionReceipt({ hash: swapHash });
 
-  /* ── Allowance check ───────────────────────────────────────────── */
+  /* ── Allowance check ───────────────────────────────────────────────── */
   const amountInWei = amountIn ? toTokenUnits(amountIn, tokenIn.decimals ?? 18) : 0n;
 
   const { data: allowance, refetch: refetchAllowance } = useReadContract({
@@ -97,7 +102,7 @@ export function useUniswapSwap({
 
   const needsApproval = !isNativeIn && allowance !== undefined && (allowance as bigint) < amountInWei;
 
-  /* ── State watchers ────────────────────────────────────────────── */
+  /* ── State watchers ────────────────────────────────────────────────── */
   useEffect(() => {
     if (isApprovalConfirmed) { setStatus('approved'); refetchAllowance(); }
   }, [isApprovalConfirmed, refetchAllowance]);
@@ -120,7 +125,7 @@ export function useUniswapSwap({
     }
   }, [swapWriteError, status]);
 
-  /* ── Approve (exact amount — not unlimited) ────────────────────── */
+  /* ── Approve ───────────────────────────────────────────────────────── */
   const approve = () => {
     if (!address || !routerAddress) return;
     setStatus('approving');
@@ -129,28 +134,63 @@ export function useUniswapSwap({
       address:      tokenIn.address as `0x${string}`,
       abi:          ERC20_ABI,
       functionName: 'approve',
-      // Approve 10× the current amount so the user doesn't need to re-approve
-      // on every small trade, while still avoiding unlimited (maxUint256) exposure.
+      // Approve 10× so the user doesn't need to re-approve on every small trade
       args:         [routerAddress, amountInWei * 10n],
     });
   };
 
-  /* ── Execute swap (via multicall + deadline) ───────────────────── */
+  /* ── Execute swap ──────────────────────────────────────────────────── */
   const executeSwap = () => {
     if (!quote || !address || !routerAddress || !weth) return;
 
     setStatus('swapping');
     setError(null);
 
-    const slippageBps  = BigInt(Math.round(slippage * 100));
-    const feeBps       = BigInt(PROTOCOL_FEE_BPS);
+    const deadline    = BigInt(Math.floor(Date.now() / 1000) + DEADLINE_SECONDS);
+    const slippageBps = BigInt(Math.round(slippage * 100));
+    const feeBps      = BigInt(PROTOCOL_FEE_BPS);
+
+    // ── Path A: NexSwapRouter (on-chain fee collection) ───────────────
+    if (useOwnRouter) {
+      const effectiveIn  = isNativeIn  ? weth : tokenIn.address  as `0x${string}`;
+      const effectiveOut = isNativeOut ? weth : tokenOut.address as `0x${string}`;
+
+      // Our router takes fee from amountIn before forwarding to Uniswap,
+      // so Uniswap only sees (amountIn × (1 - fee%)). Adjust amountOutMin
+      // to account for the reduced input, then apply slippage on top:
+      //   amountOutMin = quote × (1 - fee%) × (1 - slippage%)
+      const amountOutMin =
+        quote.amountOut * (10000n - feeBps) / 10000n *
+        (10000n - slippageBps) / 10000n;
+
+      if (isNativeIn) {
+        doSwap({
+          address:      nexswapRouter!,
+          abi:          NEXSWAP_ROUTER_ABI,
+          functionName: 'swapExactETHInput',
+          args:         [effectiveOut, quote.feeTier, amountOutMin, deadline],
+          value:        amountInWei,
+        });
+      } else {
+        doSwap({
+          address:      nexswapRouter!,
+          abi:          NEXSWAP_ROUTER_ABI,
+          functionName: 'swapExactInput',
+          args:         [effectiveIn, effectiveOut, quote.feeTier, amountInWei, amountOutMin, deadline],
+        });
+      }
+      return;
+    }
+
+    // ── Path B: Direct Uniswap v3 fallback (fee shown in UI only) ─────
+    // Fee tightens amountOutMin so the user at least gets slippage protection
+    // that accounts for the effective cost. Fees are NOT collected on-chain here.
     const totalBps     = slippageBps + feeBps;
     const amountOutMin = (quote.amountOut * (10000n - totalBps)) / 10000n;
 
     const effectiveIn  = isNativeIn  ? weth : tokenIn.address  as `0x${string}`;
     const effectiveOut = isNativeOut ? weth : tokenOut.address as `0x${string}`;
 
-    // Encode the exactInputSingle call for use in multicall
     const swapCallData = encodeFunctionData({
       abi:          SWAP_ROUTER_ABI,
       functionName: 'exactInputSingle',
@@ -165,11 +205,8 @@ export function useUniswapSwap({
       }],
     });
 
-    // Wrap in multicall with deadline — protects against MEV sandwich attacks
-    const deadline = BigInt(Math.floor(Date.now() / 1000) + DEADLINE_SECONDS);
-
     doSwap({
-      address:      routerAddress,
+      address:      uniswapRouter as `0x${string}`,
       abi:          MULTICALL_ABI,
       functionName: 'multicall',
       args:         [deadline, [swapCallData]],
@@ -177,6 +214,7 @@ export function useUniswapSwap({
     });
   };
 
+  /* ── Reset ─────────────────────────────────────────────────────────── */
   const reset = () => {
     setStatus('idle');
     setError(null);
@@ -197,5 +235,7 @@ export function useUniswapSwap({
     approve,
     executeSwap,
     reset,
+    /** true = fees collected on-chain via NexSwapRouter */
+    usingOwnRouter: useOwnRouter,
   };
 }
