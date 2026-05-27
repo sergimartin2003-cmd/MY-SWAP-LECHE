@@ -1,73 +1,95 @@
-# React + TypeScript + Vite
+# NexSwap — Next-Gen DEX
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A next-generation decentralised exchange built on Uniswap v3. Real-time quotes, live charts, multi-chain support, and on-chain fee collection via NexSwapRouter.
 
-Currently, two official plugins are available:
+---
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## Features
 
-## React Compiler
+- ⚡ **Real-time swaps** — Uniswap v3 QuoterV2 + SwapRouter02
+- 💰 **Platform fee** — 0.25% collected on-chain via NexSwapRouter
+- 📊 **Analytics** — 30-day volume, fees, top pairs
+- 🎯 **Limit Orders** — Set target prices, stored locally
+- 🎁 **Referral system** — Unique codes, shareable links
+- 🌐 **Multi-chain** — Ethereum, Base, Arbitrum, Optimism, Polygon
+- 🔐 **8 wallets** — MetaMask, Phantom, Trust, Brave, Coinbase, WalletConnect, Safe, Injected
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+---
 
-## Expanding the ESLint configuration
+## Quick Start
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+npm install
+cp .env.example .env.local   # fill in your values
+npm run dev
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+---
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+## Environment Variables
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `VITE_TREASURY_ADDRESS` | ✅ Yes | Your wallet — receives all platform fees |
+| `VITE_WC_PROJECT_ID` | Optional | WalletConnect QR code support |
+| `VITE_NEXSWAP_ROUTER_MAINNET` | Optional | Deployed NexSwapRouter on Ethereum |
+| `VITE_NEXSWAP_ROUTER_BASE` | Optional | Deployed NexSwapRouter on Base |
+| `VITE_NEXSWAP_ROUTER_ARBITRUM` | Optional | Deployed NexSwapRouter on Arbitrum |
+| `VITE_NEXSWAP_ROUTER_OPTIMISM` | Optional | Deployed NexSwapRouter on Optimism |
+| `VITE_NEXSWAP_ROUTER_POLYGON` | Optional | Deployed NexSwapRouter on Polygon |
+
+---
+
+## Deploy to Vercel
+
+1. Push to GitHub
+2. Import repo at [vercel.com/new](https://vercel.com/new)
+3. Add environment variables (see table above)
+4. Deploy — done ✅
+
+---
+
+## On-Chain Fee Collection
+
+Deploy `contracts/NexSwapRouter.sol` via Remix IDE (no npm needed).
+Full guide: [`contracts/DEPLOY.md`](contracts/DEPLOY.md)
+
+Once deployed, add `VITE_NEXSWAP_ROUTER_*` env vars to Vercel.
+The swap UI will automatically show **ON-CHAIN ✓** and route through your contract.
+
+---
+
+## Tech Stack
+
+| Layer | Tech |
+|-------|------|
+| Frontend | React 19 + TypeScript + Vite |
+| Styling | Tailwind CSS + Framer Motion |
+| Web3 | wagmi v2 + viem + Uniswap v3 |
+| State | Zustand |
+| Tests | Vitest + Testing Library (25 tests) |
+| Deploy | Vercel |
+
+---
+
+## Scripts
+
+```bash
+npm run dev        # development server
+npm run build      # production build
+npm run test       # run tests
+npm run preview    # preview production build
 ```
+
+---
+
+## Fee Model
+
+```
+User swap $1,000
+  → NexSwapRouter takes $2.50 (0.25%) → your treasury wallet
+  → $997.50 routed through Uniswap v3
+  → User receives tokens
+```
+
+The platform fee is hardcapped at 1% in the contract.
