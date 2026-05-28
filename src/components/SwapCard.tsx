@@ -348,9 +348,9 @@ export default function SwapCard() {
               <span className="text-white/40">Platform Fee</span>
               <span className="font-mono flex items-center gap-1.5" style={{ color: '#00FF88' }}>
                 {PROTOCOL_FEE_BPS / 100}%
-                {quote && (
+                {amountIn && parseFloat(amountIn) > 0 && (
                   <span className="text-white/30">
-                    (≈ {((parseFloat(quote.amountOutFormatted) * PROTOCOL_FEE_BPS) / 10000).toFixed(6)} {tokenOut.symbol})
+                    (≈ {((parseFloat(amountIn) * PROTOCOL_FEE_BPS) / 10000).toFixed(6)} {tokenIn.symbol})
                   </span>
                 )}
                 {usingOwnRouter
@@ -374,7 +374,7 @@ export default function SwapCard() {
           >
             <Info size={13} className="mt-0.5 flex-shrink-0" />
             <span>
-              Approve <strong>{tokenIn.symbol}</strong> to Uniswap v3 Router.
+              Approve <strong>{tokenIn.symbol}</strong> to {usingOwnRouter ? 'NexSwap Router' : 'Uniswap v3 Router'}.
               This is a one-time transaction per token.
             </span>
           </motion.div>

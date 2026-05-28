@@ -221,7 +221,7 @@ function ReferralPanel() {
                 <span className="text-xs text-white/40">{label}</span>
               </div>
               <p className="text-lg font-black font-mono" style={{ color }}>
-                {raw ? value : value}
+                {raw ? value : value.toLocaleString()}
               </p>
             </div>
           ))}

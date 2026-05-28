@@ -6,6 +6,7 @@
  * Returns a map of { [tokenAddress]: humanReadableBalance }
  */
 import { useBalance, useReadContracts } from 'wagmi';
+import { useMemo } from 'react';
 import { TOKENS, NATIVE_ETH } from '../data/tokens';
 
 const ERC20_BALANCE_ABI = [
@@ -35,7 +36,8 @@ export function useTokenBalances(
   });
 
   // ── ERC-20 balances (batch) ────────────────────────────────────────
-  const erc20Tokens = TOKENS.filter(t => t.address !== NATIVE_ETH);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const erc20Tokens = useMemo(() => TOKENS.filter(t => t.address !== NATIVE_ETH), []);
 
   const { data: erc20Data } = useReadContracts({
     contracts: erc20Tokens.map(token => ({
@@ -61,9 +63,11 @@ export function useTokenBalances(
   erc20Tokens.forEach((token, idx) => {
     const result = erc20Data?.[idx];
     if (result?.status === 'success' && result.result !== undefined) {
-      const raw = result.result as bigint;
-      // Convert raw integer to human-readable float
-      balances[token.address] = Number(raw) / 10 ** (token.decimals ?? 18);
+      const raw      = result.result as bigint;
+      const decimals = token.decimals ?? 18;
+      // Divide as bigint first to stay within safe integer range
+      balances[token.address] = Number(raw / BigInt(10 ** decimals)) +
+        Number(raw % BigInt(10 ** decimals)) / 10 ** decimals;
     }
   });
 

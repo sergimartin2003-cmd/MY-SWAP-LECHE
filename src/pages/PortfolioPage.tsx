@@ -12,8 +12,13 @@ export default function PortfolioPage() {
   const getBalance = (t: typeof TOKENS[0]) =>
     walletConnected ? (tokenBalances[t.address] ?? 0) : (t.balance ?? 0);
 
-  const ownedTokens = TOKENS.filter(t => getBalance(t) > 0);
-  const totalValue  = ownedTokens.reduce((sum, t) => sum + getBalance(t) * t.price, 0);
+  const ownedTokens  = TOKENS.filter(t => getBalance(t) > 0);
+  const totalValue   = ownedTokens.reduce((sum, t) => sum + getBalance(t) * t.price, 0);
+  // Daily P&L: sum of each holding's value × its 24h change percentage
+  const totalChange24h = ownedTokens.reduce(
+    (sum, t) => sum + getBalance(t) * t.price * (t.change24h / 100), 0
+  );
+  const changePct24h = totalValue > 0 ? (totalChange24h / (totalValue - totalChange24h)) * 100 : 0;
 
   const filteredTx = TRANSACTIONS.filter(tx => txFilter === 'all' || tx.type === txFilter);
 
@@ -64,7 +69,9 @@ export default function PortfolioPage() {
           <div>
             <p className="text-sm text-white/40 mb-1">Total Portfolio Value</p>
             <p className="text-4xl font-black font-mono text-white">${totalValue.toLocaleString('en-US', { maximumFractionDigits: 2 })}</p>
-            <p className="text-sm mt-1" style={{ color: '#00FF88' }}>↑ +$342.50 (+7.8%) today</p>
+            <p className="text-sm mt-1" style={{ color: totalChange24h >= 0 ? '#00FF88' : '#FF2D78' }}>
+              {totalChange24h >= 0 ? '↑' : '↓'} {totalChange24h >= 0 ? '+' : ''}${Math.abs(totalChange24h).toLocaleString('en-US', { maximumFractionDigits: 2 })} ({changePct24h >= 0 ? '+' : ''}{changePct24h.toFixed(2)}%) today
+            </p>
           </div>
           <div className="flex items-center gap-2 text-sm rounded-xl px-4 py-2" style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)' }}>
             <div className="w-2 h-2 rounded-full bg-neon-green animate-pulse" />

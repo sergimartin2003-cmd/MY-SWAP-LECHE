@@ -336,9 +336,11 @@ export default function LimitOrdersPage() {
   }, []);
 
   const addOrder = (order: LimitOrder) => {
-    const updated = [order, ...orders];
-    setOrders(updated);
-    saveOrders(updated);
+    setOrders(prev => {
+      const updated = [order, ...prev];
+      saveOrders(updated);
+      return updated;
+    });
   };
 
   const cancelOrder = (id: string) => {

@@ -93,9 +93,13 @@ export function useUniswapQuote(
 
       if (successes.length === 0) throw new Error('No liquidity found for this pair on this network');
 
-      const best      = successes[0];
-      const destDec   = tokenOut.decimals ?? 18;
-      const formatted = (Number(best.amountOut) / 10 ** destDec).toFixed(destDec > 8 ? 6 : destDec);
+      const best    = successes[0];
+      const destDec = tokenOut.decimals ?? 18;
+      // Use bigint division to avoid precision loss for large values (e.g. SHIB/PEPE)
+      const wholePart    = best.amountOut / BigInt(10 ** destDec);
+      const fracPart     = best.amountOut % BigInt(10 ** destDec);
+      const humanReadable = Number(wholePart) + Number(fracPart) / 10 ** destDec;
+      const formatted   = humanReadable.toFixed(destDec > 8 ? 6 : destDec);
 
       setQuote({ amountOut: best.amountOut, amountOutFormatted: formatted, feeTier: best.fee, gasEstimate: best.gasEstimate });
     } catch (err) {

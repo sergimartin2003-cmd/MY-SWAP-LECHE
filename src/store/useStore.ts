@@ -94,12 +94,26 @@ export const useStore = create<AppState>((set, get) => ({
     }
   },
   setAmountOut: (amount) => set({ amountOut: amount }),
-  flipTokens: () => set((state) => ({
-    tokenIn: state.tokenOut,
-    tokenOut: state.tokenIn,
-    amountIn: state.amountOut,
-    amountOut: state.amountIn,
-  })),
+  flipTokens: () => set((state) => {
+    const newAmountIn = state.amountOut;
+    const newTokenIn  = state.tokenOut;
+    const newTokenOut = state.tokenIn;
+    const num         = parseFloat(newAmountIn);
+    const impact      = (!isNaN(num) && num > 0)
+      ? Math.min(num * newTokenIn.price / 1_000_000 * 0.3, 15)
+      : 0;
+    const rate      = newTokenIn.price / newTokenOut.price;
+    const newAmountOut = (!isNaN(num) && num > 0)
+      ? (num * rate * (1 - impact / 100)).toFixed(6)
+      : state.amountIn;
+    return {
+      tokenIn:     newTokenIn,
+      tokenOut:    newTokenOut,
+      amountIn:    newAmountIn,
+      amountOut:   newAmountOut,
+      priceImpact: impact,
+    };
+  }),
   setSlippage: (slippage) => set({ slippage }),
   setGasSpeed: (gasSpeed) => set({ gasSpeed }),
 

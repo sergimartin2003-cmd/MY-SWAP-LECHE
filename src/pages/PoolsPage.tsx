@@ -3,6 +3,7 @@ import { Droplets, Plus, TrendingUp, Info, ExternalLink, AlertTriangle } from 'l
 import { POOLS } from '../data/tokens';
 import { useState } from 'react';
 import type { Pool } from '../types';
+import { useStore } from '../store/useStore';
 
 /** APR = (daily fees / TVL) × 365 × 100
  *  daily fees = volume24h × feeTier%
@@ -15,6 +16,7 @@ function calcApr(pool: Pool): number {
 
 export default function PoolsPage() {
   const [selectedPool, setSelectedPool] = useState<Pool | null>(null);
+  const { tokenBalances } = useStore();
 
   const formatNum = (n: number) => {
     if (n >= 1e9) return `$${(n / 1e9).toFixed(2)}B`;
@@ -338,7 +340,7 @@ export default function PoolsPage() {
                       <span className="text-sm font-semibold text-white">{token.symbol}</span>
                     </div>
                     <span className="text-xs text-white/30">
-                      Balance: {token.balance?.toFixed(4) ?? '0.0000'}
+                      Balance: {(tokenBalances[token.address] ?? 0).toFixed(4)}
                     </span>
                   </div>
                   <input

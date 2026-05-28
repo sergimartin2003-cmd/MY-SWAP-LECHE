@@ -310,7 +310,7 @@ export default function WalletPanel() {
                       style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
                       {(() => {
                         const ownedTokens = TOKENS.filter(t => {
-                          const bal = tokenBalances[t.address] ?? t.balance ?? 0;
+                          const bal = tokenBalances[t.address] ?? 0;
                           return bal > 0;
                         });
                         if (ownedTokens.length === 0) {
@@ -319,7 +319,7 @@ export default function WalletPanel() {
                           );
                         }
                         return ownedTokens.map(t => {
-                          const bal = tokenBalances[t.address] ?? t.balance ?? 0;
+                          const bal = tokenBalances[t.address] ?? 0;
                           const usd = bal * t.price;
                           return (
                             <BalanceRow

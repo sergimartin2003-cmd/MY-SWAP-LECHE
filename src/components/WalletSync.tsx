@@ -14,8 +14,8 @@ export default function WalletSync() {
   const { address, isConnected } = useAccount();
   const chainId = useChainId();
 
-  // Native balance for the wallet summary card
-  const { data: nativeBalance } = useBalance({ address });
+  // Native balance for the wallet summary card (chainId keeps it current after network switch)
+  const { data: nativeBalance } = useBalance({ address, chainId, query: { refetchInterval: 15_000 } });
 
   // Real on-chain balances for every token in the list
   const tokenBalances = useTokenBalances(isConnected ? address : undefined, chainId);
