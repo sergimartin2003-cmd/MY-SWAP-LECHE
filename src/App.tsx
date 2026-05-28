@@ -15,6 +15,10 @@ const PoolsPage       = lazy(() => import('./pages/PoolsPage'));
 const PortfolioPage   = lazy(() => import('./pages/PortfolioPage'));
 const AnalyticsPage   = lazy(() => import('./pages/AnalyticsPage'));
 const LimitOrdersPage = lazy(() => import('./pages/LimitOrdersPage'));
+const BridgePage      = lazy(() => import('./pages/BridgePage'));
+const EarnPage        = lazy(() => import('./pages/EarnPage'));
+const LeaderboardPage = lazy(() => import('./pages/LeaderboardPage'));
+const GovernancePage  = lazy(() => import('./pages/GovernancePage'));
 
 const pageVariants = {
   initial: { opacity: 0, y: 12 },
@@ -38,13 +42,17 @@ export default function App() {
 
   const renderPage = () => {
     switch (activeTab) {
-      case 'swap':       return <SwapPage />;
-      case 'markets':    return <MarketsPage />;
-      case 'pools':      return <PoolsPage />;
-      case 'portfolio':  return <PortfolioPage />;
-      case 'analytics':  return <AnalyticsPage />;
-      case 'limits':     return <LimitOrdersPage />;
-      default:           return <SwapPage />;
+      case 'swap':        return <SwapPage />;
+      case 'markets':     return <MarketsPage />;
+      case 'pools':       return <PoolsPage />;
+      case 'portfolio':   return <PortfolioPage />;
+      case 'analytics':   return <AnalyticsPage />;
+      case 'limits':      return <LimitOrdersPage />;
+      case 'bridge':      return <BridgePage />;
+      case 'earn':        return <EarnPage />;
+      case 'leaderboard': return <LeaderboardPage />;
+      case 'governance':  return <GovernancePage />;
+      default:            return <SwapPage />;
     }
   };
 
