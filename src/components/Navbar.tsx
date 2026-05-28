@@ -1,5 +1,5 @@
 import { motion, AnimatePresence } from 'framer-motion';
-import { Zap, ChevronDown, GitBranch, TrendingUp, Trophy, Vote } from 'lucide-react';
+import { Zap, ChevronDown, GitBranch, TrendingUp, Trophy, Vote, Settings } from 'lucide-react';
 import { useAccount, useBalance } from 'wagmi';
 import { useStore } from '../store/useStore';
 import { useState, useRef, useEffect } from 'react';
@@ -18,6 +18,7 @@ const MORE_TABS = [
   { id: 'earn',        label: 'Earn',         icon: TrendingUp, desc: 'Stake, farm, earn yield', badge: 'New' },
   { id: 'leaderboard', label: 'Leaderboard',  icon: Trophy,    desc: 'Top traders & prizes' },
   { id: 'governance',  label: 'Governance',   icon: Vote,      desc: 'Vote on protocol changes' },
+  { id: 'settings',    label: 'Settings',     icon: Settings,  desc: 'Trading & display preferences' },
 ];
 
 const ALL_TABS = [...MAIN_TABS, ...MORE_TABS];

@@ -3,10 +3,29 @@ import { Wallet, ArrowUpRight, ArrowDownLeft, Plus, TrendingUp, TrendingDown, Ex
 import { useStore } from '../store/useStore';
 import { TOKENS, TRANSACTIONS } from '../data/tokens';
 import { useState } from 'react';
+import { useChainId } from 'wagmi';
+
+const EXPLORER: Record<number, string> = {
+  1:     'https://etherscan.io/address/',
+  137:   'https://polygonscan.com/address/',
+  42161: 'https://arbiscan.io/address/',
+  10:    'https://optimistic.etherscan.io/address/',
+  8453:  'https://basescan.org/address/',
+};
 
 export default function PortfolioPage() {
-  const { walletConnected, walletAddress, tokenBalances, setShowWalletPanel } = useStore();
+  const { walletConnected, walletAddress, tokenBalances, setShowWalletPanel, addNotification } = useStore();
+  const chainId = useChainId();
   const [txFilter, setTxFilter] = useState<'all' | 'swap' | 'add' | 'remove'>('all');
+  const [copied, setCopied] = useState(false);
+
+  const copyAddress = () => {
+    navigator.clipboard.writeText(walletAddress).then(() => {
+      setCopied(true);
+      addNotification({ type: 'success', title: 'Copied!', message: 'Wallet address copied to clipboard.' });
+      setTimeout(() => setCopied(false), 2000);
+    });
+  };
 
   // Use real on-chain balances when connected; fall back to static demo data
   const getBalance = (t: typeof TOKENS[0]) =>
@@ -76,12 +95,16 @@ export default function PortfolioPage() {
           <div className="flex items-center gap-2 text-sm rounded-xl px-4 py-2" style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)' }}>
             <div className="w-2 h-2 rounded-full bg-neon-green animate-pulse" />
             <span className="font-mono text-white/70">{walletAddress.slice(0, 6)}...{walletAddress.slice(-4)}</span>
-            <button className="text-white/30 hover:text-white/70 transition-colors ml-1">
+            <button onClick={copyAddress} title="Copy address"
+              className="transition-colors ml-1"
+              style={{ color: copied ? '#00FF88' : 'rgba(255,255,255,0.3)' }}>
               <Copy size={13} />
             </button>
-            <button className="text-white/30 hover:text-white/70 transition-colors">
+            <a href={`${EXPLORER[chainId] ?? EXPLORER[1]}${walletAddress}`} target="_blank" rel="noopener noreferrer"
+              title="View on explorer"
+              className="text-white/30 hover:text-white/70 transition-colors">
               <ExternalLink size={13} />
-            </button>
+            </a>
           </div>
         </div>
       </motion.div>
