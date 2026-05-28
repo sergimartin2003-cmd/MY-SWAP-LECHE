@@ -19,6 +19,7 @@ const BridgePage      = lazy(() => import('./pages/BridgePage'));
 const EarnPage        = lazy(() => import('./pages/EarnPage'));
 const LeaderboardPage = lazy(() => import('./pages/LeaderboardPage'));
 const GovernancePage  = lazy(() => import('./pages/GovernancePage'));
+const SettingsPage    = lazy(() => import('./pages/SettingsPage'));
 
 const pageVariants = {
   initial: { opacity: 0, y: 12 },
@@ -87,6 +88,7 @@ export default function App() {
       case 'earn':        return <EarnPage />;
       case 'leaderboard': return <LeaderboardPage />;
       case 'governance':  return <GovernancePage />;
+      case 'settings':    return <SettingsPage />;
       default:            return <SwapPage />;
     }
   };
